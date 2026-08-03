@@ -1,0 +1,228 @@
+import asyncio
+import os
+import json
+import logging
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+
+from src.agents.supervisor import run_supervisor
+from src.core.copilot import copilot_chat
+from src.core.logger import logger
+
+app = FastAPI(
+    title="ChemShield AI — Enterprise Safety & SDS Platform",
+    description="Multi-agent OSHA compliance auditing, PubChem GHS retrieval, and 16-section SDS generation API.",
+    version="2.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+os.makedirs("static", exist_ok=True)
+os.makedirs("assets/pictograms", exist_ok=True)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+class AuditRequest(BaseModel):
+    user_input: str = Field(description="Lab formulation note or chemical input text")
+    intent: str = Field(default="audit", description="Action intent: 'audit', 'sds', or 'full'")
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list = Field(default_factory=list)
+    formulation_context: str | None = Field(
+        default=None,
+        description="Last audited formulation text, injected into copilot system prompt for contextual awareness."
+    )
+    audit_summary: str | None = Field(
+        default=None,
+        description="Summary sentence from the last audit run, provided as context to the copilot."
+    )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
+    index_path = os.path.join("static", "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse("<h1>ChemShield AI is starting up...</h1>")
+
+
+_EXAMPLE_SCENARIOS = {
+    "rejected_benzene": {
+        "title": "REJECTED: Benzene + Unsafe Soda Lime Glass",
+        "input": "Formula B: 94% Water, 6% Benzene. Heat the mixture to 120°C in a soda lime glass beaker.",
+    },
+    "approved_ipa": {
+        "title": "APPROVED: Safe Isopropanol Solvents",
+        "input": "Mix 70% Isopropanol and 30% Water. Store in a polypropylene container at 25°C.",
+    },
+    "partial_toluene": {
+        "title": "PARTIAL: Toluene & Acetone Exposure Warning",
+        "input": "Formulation: 500 ppm Toluene, 800 ppm Acetone. Heated to 90°C in a polypropylene container.",
+    },
+    "chloroform_web": {
+        "title": "Web Fallback: Chloroform Lookup",
+        "input": "Formula X: 50% Chloroform. Store at 25°C in a borosilicate glass beaker.",
+    },
+    "typo_auto_correct": {
+        "title": "Auto Correction: Fuzzy Match (benzen -> Benzene)",
+        "input": "Note: Contains 6% benzen. Heated to 50°C in a borosilicate glass beaker.",
+    },
+}
+
+
+@app.get("/api/v1/examples")
+async def get_examples():
+    return JSONResponse(content=_EXAMPLE_SCENARIOS)
+
+
+@app.post("/api/v1/audit")
+async def audit_endpoint(req: AuditRequest):
+    """Blocking audit endpoint. Collects logs via a temporary handler and returns them with the result."""
+    if not req.user_input or not req.user_input.strip():
+        raise HTTPException(status_code=400, detail="Formulation input text cannot be empty.")
+
+    log_buffer: list[str] = []
+    handler = _make_buffer_handler(log_buffer)
+    logger.addHandler(handler)
+    try:
+        result = await run_supervisor(req.user_input.strip(), intent=req.intent)
+        payload = result.model_dump()
+        payload["logs"] = log_buffer[:]
+        return JSONResponse(content=payload)
+    except Exception as e:
+        logger.error(f"audit_endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        logger.removeHandler(handler)
+
+
+@app.get("/api/v1/stream")
+async def stream_audit_endpoint(input_text: str, intent: str = "audit"):
+    """
+    Server-Sent Events endpoint.
+    Attaches a per-request QueueHandler to the shared logger so every logger.info() call
+    is forwarded into the SSE stream in real-time as the pipeline runs.
+    """
+    if not input_text or not input_text.strip():
+        raise HTTPException(status_code=400, detail="Input text required.")
+
+    log_queue: asyncio.Queue[str | None] = asyncio.Queue()
+    loop = asyncio.get_running_loop()
+    queue_handler = _make_queue_handler(log_queue, loop)
+    logger.addHandler(queue_handler)
+
+    async def event_generator():
+        yield _sse("start", {"message": f"Initializing ChemShield AI pipeline (intent='{intent}')..."})
+
+        result_holder: dict = {}
+        error_holder: dict = {}
+
+        async def run_pipeline():
+            try:
+                result = await run_supervisor(input_text.strip(), intent=intent)
+                result_holder["result"] = result
+            except Exception as exc:
+                error_holder["error"] = str(exc)
+            finally:
+                logger.removeHandler(queue_handler)
+                await log_queue.put(None)  # sentinel
+
+        task = asyncio.create_task(run_pipeline())
+
+        # Stream log lines until sentinel
+        while True:
+            try:
+                msg = await asyncio.wait_for(log_queue.get(), timeout=120.0)
+                if msg is None:
+                    break
+                yield _sse("log", {"message": msg})
+            except asyncio.TimeoutError:
+                yield _sse("heartbeat", {"message": "Pipeline running..."})
+
+        await task
+
+        if error_holder:
+            yield _sse("error", {"error": error_holder["error"]})
+            return
+
+        result = result_holder.get("result")
+        if not result:
+            yield _sse("error", {"error": "No result returned from pipeline."})
+            return
+
+        # Stream trace steps with brief animation delay
+        for step in result.trace:
+            yield _sse("step", step.model_dump())
+            await asyncio.sleep(0.04)
+
+        payload = result.model_dump()
+        yield _sse("result", payload)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/api/v1/chat")
+async def chat_endpoint(req: ChatRequest):
+    """
+    Multi-turn safety copilot chat.
+    Accepts optional formulation_context and audit_summary to make the copilot
+    context-aware of the last audited formulation without the user re-typing it.
+    """
+    if not req.message or not req.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+    try:
+        res_dict = await copilot_chat(
+            message=req.message.strip(),
+            history=req.history,
+            formulation_context=req.formulation_context,
+            audit_summary=req.audit_summary,
+        )
+        return JSONResponse(content=res_dict)
+    except Exception as e:
+        logger.error(f"chat_endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _sse(event: str, data: dict) -> str:
+    """Format a Server-Sent Event string."""
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+def _make_buffer_handler(target: list[str]) -> logging.Handler:
+    """Returns a handler that appends formatted log lines to a list."""
+    class _BufferHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            target.append(self.format(record))
+
+    h = _BufferHandler()
+    h.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s", "%H:%M:%S"))
+    return h
+
+
+def _make_queue_handler(queue: asyncio.Queue, loop: asyncio.AbstractEventLoop) -> logging.Handler:
+    """Returns a handler that pushes formatted log lines into an asyncio queue (thread-safe)."""
+    class _QueueHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            msg = self.format(record)
+            try:
+                loop.call_soon_threadsafe(queue.put_nowait, msg)
+            except Exception:
+                pass
+
+    h = _QueueHandler()
+    h.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s", "%H:%M:%S"))
+    return h

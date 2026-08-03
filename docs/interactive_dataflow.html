@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Data Flow Simulator - Lab Safety Auditor</title>
+    <meta name="description" content="Interactive architecture and dataflow simulation for the Automated Lab Safety Auditor. Check OSHA chemical compliance, hardware compatibility via MCP, and boiling point physical hazards in real-time.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            
+            --primary: #06b6d4; /* Cyan */
+            --primary-glow: rgba(6, 182, 212, 0.15);
+            
+            --success: #10b981; /* Green */
+            --success-glow: rgba(16, 185, 129, 0.15);
+            
+            --warning: #f59e0b; /* Amber */
+            --warning-glow: rgba(245, 158, 11, 0.15);
+            
+            --danger: #ef4444; /* Red */
+            --danger-glow: rgba(239, 68, 68, 0.15);
+            
+            --purple: #8b5cf6; /* Violet */
+            --purple-glow: rgba(139, 92, 246, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%),
+                linear-gradient(rgba(255, 255, 255, 0.003) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.003) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        header {
+            padding: 2rem 4rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-section h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 40%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-section p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .badge-list {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tech-badge.active {
+            color: var(--primary);
+            border-color: rgba(6, 182, 212, 0.3);
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        /* Main Workspace Layout */
+        main {
+            flex: 1;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem 4rem;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            height: calc(100vh - 100px);
+            min-height: 700px;
+        }
+
+        /* Sidebar Control Center */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+        }
+
+        .preset-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .preset-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            color: var(--text-color);
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .preset-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .preset-btn.selected {
+            background: rgba(6, 182, 212, 0.08);
+            border-color: var(--primary);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.1);
+        }
+
+        .preset-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .preset-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .preset-badge {
+            font-size: 0.65rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .preset-badge.pass { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .preset-badge.fail { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .preset-badge.partial { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .form-group label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.85rem;
+            resize: none;
+            transition: border-color 0.2s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .sim-controls {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.8rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #0b0f19;
+            border: none;
+            box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #22d3ee;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Visualization Sandbox */
+        .viz-container {
+            display: grid;
+            grid-template-rows: 1fr 280px;
+            gap: 1.5rem;
+            height: 100%;
+        }
+
+        /* Node Canvas */
+        .canvas-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .canvas-grid-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.35;
+        }
+
+        /* SVG lines for animation */
+        .connections-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .connection-line {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-width: 2.5;
+            stroke-linecap: round;
+        }
+
+        .connection-pulse {
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 3.5;
+            stroke-linecap: round;
+            stroke-dasharray: 10, 150;
+            stroke-dashoffset: 0;
+            opacity: 0;
+        }
+
+        @keyframes pulse-flow {
+            0% {
+                stroke-dashoffset: 160;
+                opacity: 1;
+            }
+            100% {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+
+        .pulse-active {
+            animation: pulse-flow 1.5s linear infinite;
+        }
+
+        /* Diagram Architecture Nodes */
+        .nodes-layer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            padding: 2.5rem;
+            gap: 1.5rem;
+        }
+
+        .node {
+            background: rgba(17, 24, 39, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            align-self: center;
+            justify-self: center;
+            width: 100%;
+            max-width: 240px;
+            height: 75px;
+        }
+
+        .node:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            background: rgba(31, 41, 55, 0.9);
+        }
+
+        /* Node Position Grid Mapping */
+        #node-input     { grid-column: 1; grid-row: 1; }
+        #node-extractor { grid-column: 1; grid-row: 2; }
+        #node-cache     { grid-column: 1; grid-row: 3; }
+        #node-rag       { grid-column: 2; grid-row: 1; }
+        #node-mcp       { grid-column: 2; grid-row: 2; }
+        #node-phys      { grid-column: 2; grid-row: 3; }
+        #node-solver    { grid-column: 3; grid-row: 1; }
+        #node-llm       { grid-column: 3; grid-row: 2; }
+        #node-pydantic  { grid-column: 3; grid-row: 3; }
+
+        .node-icon-wrapper {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .node-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .node-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e5e7eb;
+        }
+
+        .node-meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* State Classes */
+        .node.active-now {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+            background: rgba(6, 182, 212, 0.07);
+        }
+        .node.active-now .node-icon-wrapper {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--primary);
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .node.completed {
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.02);
+        }
+        .node.completed .node-icon-wrapper {
+            color: var(--success);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .node.failed-state {
+            border-color: rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.03);
+        }
+        .node.failed-state .node-icon-wrapper {
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        /* Interactive Inspector Panel */
+        .inspector-panel {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 1.5rem;
+            height: 100%;
+        }
+
+        .inspector-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .inspector-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .inspector-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .inspector-source-link {
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--primary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-top: 0.25rem;
+        }
+
+        .inspector-source-link:hover {
+            text-decoration: underline;
+        }
+
+        .data-display {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: #a7f3d0; /* Soft emerald code text */
+            position: relative;
+        }
+
+        .data-display::before {
+            content: 'DATA OUTPUT';
+            position: absolute;
+            top: 0.5rem;
+            right: 0.75rem;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+        }
+
+        .status-tracker {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-top: auto;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            display: inline-block;
+            box-shadow: 0 0 8px rgba(156, 163, 175, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.idle { background: #9ca3af; box-shadow: 0 0 8px rgba(156, 163, 175, 0.5); }
+        .status-dot.running { background: var(--primary); box-shadow: 0 0 8px rgba(6, 182, 212, 0.8); }
+        .status-dot.passed { background: var(--success); box-shadow: 0 0 8px rgba(16, 185, 129, 0.8); }
+        .status-dot.failed { background: var(--danger); box-shadow: 0 0 8px rgba(239, 68, 68, 0.8); }
+        .status-dot.partial { background: var(--warning); box-shadow: 0 0 8px rgba(245, 158, 11, 0.8); }
+
+        .pipeline-status-text {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        /* Gradio Visual Preview Modal style */
+        .output-preview-card {
+            background: rgba(11, 15, 25, 0.95);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            max-width: 600px;
+            width: 90%;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .output-preview-card.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 90;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .preview-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        .preview-close:hover {
+            color: #fff;
+        }
+
+        /* Gradio Card CSS simulation */
+        .gradio-badge {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .gradio-card {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .gradio-card.pass { border-left: 4px solid var(--success); }
+        .gradio-card.fail { border-left: 4px solid var(--danger); }
+
+        .gradio-card-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.4rem;
+        }
+
+        .gradio-card-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 0.4rem;
+        }
+
+        .gradio-card-value {
+            font-size: 0.85rem;
+            color: #e5e7eb;
+        }
+
+        .gradio-citation {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 6px;
+            padding: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        .gradio-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        .gradio-grid-col h5 {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        /* SVG definitions for standard layouts */
+        svg.node-icon {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Responsive */
+        @media(max-width: 1100px) {
+            main {
+                grid-template-columns: 1fr;
+                height: auto;
+                overflow: visible;
+            }
+            .sidebar {
+                height: auto;
+            }
+            .viz-container {
+                grid-template-rows: 450px auto;
+            }
+            .nodes-layer {
+                padding: 1rem;
+                gap: 1rem;
+            }
+            .node {
+                max-width: 100%;
+                height: auto;
+                padding: 0.75rem;
+            }
+            .inspector-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="logo-section">
+                <h1>⚗️ Lab Safety Auditor</h1>
+                <p>Interactive Architecture & Dataflow Simulator (Actual Implementation Sandbox)</p>
+            </div>
+            <div class="badge-list">
+                <span class="tech-badge active">RAG (ChromaDB)</span>
+                <span class="tech-badge active">SQLite WAL Cache</span>
+                <span class="tech-badge active">MCP (FastMCP)</span>
+                <span class="tech-badge active">LLM (Gemini/OpenRouter)</span>
+                <span class="tech-badge active">Pydantic v2</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main>
+        
+        <!-- Sidebar Controls -->
+        <div class="sidebar">
+            
+            <div class="panel">
+                <div class="panel-title">
+                    <svg class="node-icon" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                    Test Case Presets
+                </div>
+                <div class="preset-grid">
+                    <button class="preset-btn selected" id="preset-1" onclick="loadPreset(1)">
+                        <div class="preset-name">
+                            <span class="preset-badge fail">REJECTED</span>
+                            Test Case 1
+                        </div>
+                        <div class="preset-desc">Benzene (6%) + Soda-Lime Glass @ 120°C</div>
+                    </button>
+                    <button class="preset-btn" id="preset-2" onclick="loadPreset(2)">
+                        <div class="preset-name">
+                            <span class="preset-badge pass">APPROVED</span>
+                            Test Case 2
+                        </div>
+                        <div class="preset-desc">Isopropanol (70%) + Polypropylene @ 25°C</div>
+                    </button>
+                    <button class="preset-btn" id="preset-3" onclick="loadPreset(3)">
+                        <div class="preset-name">
+                            <span class="preset-badge partial">PARTIAL</span>
+                            Test Case 3
+                        </div>
+                        <div class="preset-desc">Toluene, Acetone + Polypropylene @ 90°C</div>
+                    </button>
+                    <button class="preset-btn" id="preset-4" onclick="loadPreset(4)">
+                        <div class="preset-name">
+                            <span class="preset-badge pass" style="background: rgba(6, 182, 212, 0.2); color: #06b6d4;">COPILOT</span>
+                            Test Case 4
+                        </div>
+                        <div class="preset-desc">What PPE is required for Acetone and Toluene?</div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="panel-title">
+                    <svg class="node-icon" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    Audit Input Formulator
+                </div>
+                <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+                    <label for="formulation-input">Free-Text Lab Notes</label>
+                    <textarea id="formulation-input" style="flex: 1;" placeholder="Enter lab formulation notes, container name, and temperature..."></textarea>
+                </div>
+                <div class="sim-controls">
+                    <button class="btn btn-primary" id="run-btn" onclick="startSimulation()">
+                        <svg class="node-icon" viewBox="0 0 24 24" style="stroke: #0b0f19;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Simulate Audit
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetSimulator()">
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Viz Container -->
+        <div class="viz-container">
+            
+            <!-- Nodes Canvas Grid -->
+            <div class="canvas-card">
+                <div class="canvas-grid-bg"></div>
+                
+                <!-- SVG Vector Connections -->
+                <svg class="connections-svg" id="canvas-svg">
+                    <!-- Dynamic lines will be injected here relative to boxes -->
+                    <path class="connection-line" id="line-input-extractor" />
+                    <path class="connection-pulse" id="pulse-input-extractor" />
+                    
+                    <path class="connection-line" id="line-extractor-cache" />
+                    <path class="connection-pulse" id="pulse-extractor-cache" />
+                    
+                    <path class="connection-line" id="line-cache-rag" />
+                    <path class="connection-pulse" id="pulse-cache-rag" />
+                    
+                    <path class="connection-line" id="line-extractor-mcp" />
+                    <path class="connection-pulse" id="pulse-extractor-mcp" />
+                    
+                    <path class="connection-line" id="line-extractor-phys" />
+                    <path class="connection-pulse" id="pulse-extractor-phys" />
+                    
+                    <path class="connection-line" id="line-rag-solver" />
+                    <path class="connection-pulse" id="pulse-rag-solver" />
+                    
+                    <path class="connection-line" id="line-mcp-solver" />
+                    <path class="connection-pulse" id="pulse-mcp-solver" />
+                    
+                    <path class="connection-line" id="line-phys-solver" />
+                    <path class="connection-pulse" id="pulse-phys-solver" />
+                    
+                    <path class="connection-line" id="line-solver-llm" />
+                    <path class="connection-pulse" id="pulse-solver-llm" />
+                    
+                    <path class="connection-line" id="line-llm-pydantic" />
+                    <path class="connection-pulse" id="pulse-llm-pydantic" />
+                    
+                    <path class="connection-line" id="line-rag-llm" />
+                    <path class="connection-pulse" id="pulse-rag-llm" />
+                </svg>
+
+                <div class="nodes-layer">
+                    
+                    <!-- Col 1: Extractor -->
+                    <div class="node" id="node-input" onclick="inspectNode('input')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">Formulation Text</span>
+                            <span class="node-meta">User Input</span>
+                        </div>
+                    </div>
+
+                    <div class="node" id="node-extractor" onclick="inspectNode('extractor')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">RapidFuzz Extractor</span>
+                            <span class="node-meta">Typo Correction</span>
+                        </div>
+                    </div>
+
+                    <div class="node" id="node-cache" onclick="inspectNode('cache')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">SQLite WAL Cache</span>
+                            <span class="node-meta">Multi-Tier State</span>
+                        </div>
+                    </div>
+
+                    <!-- Col 2: Validators -->
+                    <div class="node" id="node-rag" onclick="inspectNode('rag')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">ChromaDB Store</span>
+                            <span class="node-meta">Vector RAG</span>
+                        </div>
+                    </div>
+
+                    <div class="node" id="node-mcp" onclick="inspectNode('mcp')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">FastMCP Server</span>
+                            <span class="node-meta">Hardware Check</span>
+                        </div>
+                    </div>
+
+                    <div class="node" id="node-phys" onclick="inspectNode('phys')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">Boiling Point Check</span>
+                            <span class="node-meta">Physical Hazard</span>
+                        </div>
+                    </div>
+
+                    <!-- Col 3: Resolvers -->
+                    <div class="node" id="node-solver" onclick="inspectNode('solver')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">Policy Solver</span>
+                            <span class="node-meta">Global Matrix</span>
+                        </div>
+                    </div>
+
+                    <div class="node" id="node-llm" onclick="inspectNode('llm')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">Gemini & OpenRouter</span>
+                            <span class="node-meta">Resilient Fallback</span>
+                        </div>
+                    </div>
+
+                    <div class="node" id="node-pydantic" onclick="inspectNode('pydantic')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">Pydantic Guard</span>
+                            <span class="node-meta">Schema Validation</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Inspector Panel -->
+            <div class="panel">
+                <div class="inspector-panel">
+                    
+                    <div class="inspector-meta">
+                        <div class="inspector-title" id="ins-title">
+                            <svg class="node-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                            Step Inspector
+                        </div>
+                        <div class="inspector-desc" id="ins-desc">
+                            Select a node in the diagram above or click "Simulate Audit" to inspect the variables, queries, and constraints loaded inside each step of the pipeline.
+                        </div>
+                        <a href="#" class="inspector-source-link" id="ins-link" target="_blank">
+                            <svg class="node-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                            View Source Code
+                        </a>
+                        
+                        <div class="status-tracker">
+                            <span class="pipeline-status-text">Pipeline Status</span>
+                            <span id="pipeline-status-badge">
+                                <span class="status-dot idle" id="status-dot"></span>
+                                <span style="margin-left: 0.5rem; font-weight:600;" id="status-text">IDLE</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <pre class="data-display" id="ins-data">Select a step to inspect variables...</pre>
+
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Overlay & Gradio Preview -->
+    <div class="overlay" id="overlay" onclick="closePreview()"></div>
+    <div class="output-preview-card" id="preview-card">
+        <div class="preview-header">
+            <h3 style="font-weight: 700; display:flex; align-items:center; gap:0.5rem;">
+                <svg class="node-icon" viewBox="0 0 24 24" style="color:var(--primary);"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                Gradio Rendered Output
+            </h3>
+            <button class="preview-close" onclick="closePreview()">&times;</button>
+        </div>
+        
+        <div class="gradio-badge" id="gr-badge">✅ APPROVED</div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;" id="gr-speed">
+            ⏱️ Audit completed in 3.12s using llama3.2:1b
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 1.2rem; border-left: 3px solid var(--primary);" id="gr-summary">
+            All chemical concentrations and hardware parameters are compliant with safety rules.
+        </div>
+
+        <div class="gradio-grid">
+            <div class="gradio-grid-col">
+                <h5>🧪 Chemical Compliance</h5>
+                <div id="gr-chem-cards">
+                    <!-- Injected cards -->
+                </div>
+            </div>
+            <div class="gradio-grid-col">
+                <h5>🔩 Hardware Safety</h5>
+                <div id="gr-hw-cards">
+                    <!-- Injected cards -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Logic -->
+    <script>
+        // Database Constants
+        const HARDWARE_LIMITS = {
+            "soda-lime glass": 100,
+            "borosilicate glass": 500,
+            "stainless steel beaker": 600,
+            "polypropylene container": 80
+        };
+
+        const BOILING_POINTS = {
+            "acetone": 56.0,
+            "methanol": 65.0,
+            "isopropanol": 82.0,
+            "ipa": 82.0,
+            "ethanol": 78.0,
+            "toluene": 111.0,
+            "benzene": 80.1,
+            "water": 100.0
+        };
+
+        const CHROMADB_DOCS = {
+            "benzene": "OSHA Regulation 29 CFR 1910.1028: Benzene is a dangerous occupational carcinogen. The permissible exposure limit is 1 ppm TWA for inhalation. In open-vessel formulations, the liquid concentration is strictly limited to 0.1% by volume due to vapor generation risk. Source: OSHA 29 CFR 1910.1028.",
+            "acetone": "OSHA Table Z-1 29 CFR 1910.1000: Acetone Permissible Exposure Limit is 1000 ppm TWA. It is classified as a highly volatile flammable liquid. Check ventilation requirements. Source: OSHA Table Z-1.",
+            "toluene": "OSHA Table Z-2 29 CFR 1910.1000: Toluene exposure limit is 200 ppm TWA. Long-term exposure affects central nervous system. Prevent open skin exposure. Source: OSHA Table Z-2.",
+            "methanol": "OSHA Table Z-1 29 CFR 1910.1000: Methanol exposure limit is 200 ppm TWA. Extremely toxic via ingestion or absorption. Skin contacts must be prevented. Source: OSHA Table Z-1.",
+            "isopropanol": "OSHA Table Z-1 29 CFR 1910.1000: Isopropyl alcohol exposure limit is 400 ppm TWA. It is a highly flammable organic solvent. Source: OSHA Table Z-1.",
+            "ipa": "OSHA Table Z-1 29 CFR 1910.1000: Isopropyl alcohol exposure limit is 400 ppm TWA. It is a highly flammable organic solvent. Source: OSHA Table Z-1.",
+            "ethanol": "OSHA Table Z-1 29 CFR 1910.1000: Ethanol exposure limit is 1000 ppm TWA. Classified as a Class IB flammable liquid. Source: OSHA Table Z-1."
+        };
+
+        // Presets data
+        const PRESETS = {
+            1: {
+                text: "Formula B: 94% Water, 6% Benzene. Heat the mixture to 120°C in a soda-lime glass beaker.",
+                parsed: {
+                    chemicals: [{ name: "Water", conc: "94%" }, { name: "Benzene", conc: "6%" }],
+                    hardware: [{ name: "soda-lime glass", temp: 120 }]
+                }
+            },
+            2: {
+                text: "Mix 70% Isopropanol and 30% Water. Store in a polypropylene container at 25°C.",
+                parsed: {
+                    chemicals: [{ name: "Isopropanol", conc: "70%" }, { name: "Water", conc: "30%" }],
+                    hardware: [{ name: "polypropylene container", temp: 25 }]
+                }
+            },
+            3: {
+                text: "Formulation: 500 ppm Toluene, 800 ppm Acetone. Heated to 90°C in a polypropylene container.",
+                parsed: {
+                    chemicals: [{ name: "Toluene", conc: "500 ppm" }, { name: "Acetone", conc: "800 ppm" }],
+                    hardware: [{ name: "polypropylene container", temp: 90 }]
+                }
+            },
+            4: {
+                text: "What PPE is required for Acetone and Toluene? Do I need a fume hood?",
+                parsed: {
+                    chemicals: [{ name: "Acetone", conc: "N/A" }, { name: "Toluene", conc: "N/A" }],
+                    hardware: []
+                },
+                isCopilot: true
+            }
+        };
+
+        // Node definitions mapping to inspector texts and paths
+        const NODE_DETAILS = {
+            "input": {
+                title: "User Text Input",
+                desc: "The formulation process begins when the user submits an unstructured free-text note. This note details chemical components, concentrations, equipment, and target processing temperatures.",
+                file: "app.py#L187-L192",
+                source: "https://github.com/example/blob/main/app.py#L187-L192"
+            },
+            "extractor": {
+                title: "RapidFuzz Extractor",
+                desc: "The Orchestrator extracts chemicals using regex, then RapidFuzz silently auto-corrects typos (e.g. 'benzen' -> 'Benzene') with a similarity threshold of 70+, avoiding lookup failures.",
+                file: "validator.py",
+                source: "https://github.com/example/blob/main/validator.py"
+            },
+            "cache": {
+                title: "SQLite WAL Cache",
+                desc: "A 4-tier persistent cache (WAL mode). If the exact prompt, semantic OSHA limit, LLM summary, or chat turn was previously recorded, it returns instantly without network requests.",
+                file: "cache.py",
+                source: "https://github.com/example/blob/main/cache.py"
+            },
+            "rag": {
+                title: "ChromaDB RAG Verification",
+                desc: "For each extracted chemical, a semantic search is performed against ChromaDB. The system fetches only the TOP-1 document (to avoid cross-chemical noise) and parses the limits (ppm and %) via regex.",
+                file: "rag.py#L8-L14",
+                source: "https://github.com/example/blob/main/rag.py#L8-L14"
+            },
+            "mcp": {
+                title: "FastMCP Server Hardware Check",
+                desc: "The client dispatches the vessel name and target temperature to an external FastMCP server subprocess using stdio transport. Safe maximum bounds are evaluated; falls back to local constants on connection error.",
+                file: "mcp_server.py#L7-L29",
+                source: "https://github.com/example/blob/main/mcp_server.py#L7-L29"
+            },
+            "phys": {
+                title: "Physical Hazard Checker",
+                desc: "Compiles physical chemistry properties. Compares the operating temperature to the hardcoded boiling point values. Exceeding a boiling point triggers severe pressure warnings and safety overrides.",
+                file: "agent.py#L182-L197",
+                source: "https://github.com/example/blob/main/agent.py#L182-L197"
+            },
+            "solver": {
+                title: "Policy Solver Matrix",
+                desc: "A pure-Python decision block that evaluates compliance status (volume% or TWA limits), hardware compatibility limits, and boiling hazards. Determines the overall status: APPROVED, REJECTED, or PARTIAL.",
+                file: "agent.py#L254-L272",
+                source: "https://github.com/example/blob/main/agent.py#L254-L272"
+            },
+            "llm": {
+                title: "Gemini with OpenRouter Fallback",
+                desc: "Calls Gemini primary to translate policy violations into a clean safety summary. If Gemini times out or throws a 503, the client gracefully catches it and fails over to OpenRouter models automatically.",
+                file: "llm_client.py",
+                source: "https://github.com/example/blob/main/llm_client.py"
+            },
+            "pydantic": {
+                title: "Pydantic Schema Validation",
+                desc: "Aggregates compliance findings, flags, and the LLM safety summary into the strict type-enforced ComplianceReport Pydantic schema to guarantee type-safety and eliminate downstream parsing bugs.",
+                file: "models.py#L53-L70",
+                source: "https://github.com/example/blob/main/models.py#L53-L70"
+            }
+        };
+
+        // State variables
+        let selectedPreset = 1;
+        let isSimulating = false;
+        let currentStep = "";
+        let simulationResults = null;
+
+        // Initialize formulation textarea
+        document.getElementById("formulation-input").value = PRESETS[1].text;
+
+        // SVGs connections repositioning logic
+        function drawConnectionLines() {
+            const svg = document.getElementById("canvas-svg");
+            
+            const connections = [
+                { from: "node-input", to: "node-extractor", line: "line-input-extractor", pulse: "pulse-input-extractor" },
+                { from: "node-extractor", to: "node-cache", line: "line-extractor-cache", pulse: "pulse-extractor-cache" },
+                { from: "node-cache", to: "node-rag", line: "line-cache-rag", pulse: "pulse-cache-rag" },
+                { from: "node-extractor", to: "node-mcp", line: "line-extractor-mcp", pulse: "pulse-extractor-mcp" },
+                { from: "node-extractor", to: "node-phys", line: "line-extractor-phys", pulse: "pulse-extractor-phys" },
+                { from: "node-rag", to: "node-solver", line: "line-rag-solver", pulse: "pulse-rag-solver" },
+                { from: "node-mcp", to: "node-solver", line: "line-mcp-solver", pulse: "pulse-mcp-solver" },
+                { from: "node-phys", to: "node-solver", line: "line-phys-solver", pulse: "pulse-phys-solver" },
+                { from: "node-solver", to: "node-llm", line: "line-solver-llm", pulse: "pulse-solver-llm" },
+                { from: "node-llm", to: "node-pydantic", line: "line-llm-pydantic", pulse: "pulse-llm-pydantic" },
+                { from: "node-rag", to: "node-llm", line: "line-rag-llm", pulse: "pulse-rag-llm" }
+            ];
+
+            const canvasRect = svg.getBoundingClientRect();
+
+            connections.forEach(conn => {
+                const elFrom = document.getElementById(conn.from);
+                const elTo = document.getElementById(conn.to);
+                const line = document.getElementById(conn.line);
+                const pulse = document.getElementById(conn.pulse);
+
+                if (!elFrom || !elTo || !line) return;
+
+                const fromRect = elFrom.getBoundingClientRect();
+                const toRect = elTo.getBoundingClientRect();
+
+                // Calculate center connection coordinates relative to SVG canvas
+                const startX = (fromRect.left + fromRect.width) - canvasRect.left;
+                const startY = (fromRect.top + fromRect.height / 2) - canvasRect.top;
+                const endX = toRect.left - canvasRect.left;
+                const endY = (toRect.top + toRect.height / 2) - canvasRect.top;
+
+                let pathD = "";
+                
+                // If horizontal columns (left to right)
+                if (startX < endX) {
+                    const midX = startX + (endX - startX) / 2;
+                    pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+                } else {
+                    // Vertical flow
+                    const midY = startY + (endY - startY) / 2;
+                    pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+                }
+
+                line.setAttribute("d", pathD);
+                pulse.setAttribute("d", pathD);
+            });
+        }
+
+        // Draw connections after DOM loaded and resize
+        window.addEventListener("load", () => {
+            drawConnectionLines();
+            // Trigger first node details display on startup
+            inspectNode('input');
+        });
+        window.addEventListener("resize", drawConnectionLines);
+
+        // Load Preset Function
+        function loadPreset(id) {
+            if (isSimulating) return;
+            selectedPreset = id;
+            
+            // UI Button Highlight
+            document.querySelectorAll(".preset-btn").forEach(btn => btn.classList.remove("selected"));
+            document.getElementById(`preset-${id}`).classList.add("selected");
+            
+            // Load text
+            document.getElementById("formulation-input").value = PRESETS[id].text;
+            resetSimulator();
+        }
+
+        // Reset Simulator
+        function resetSimulator() {
+            isSimulating = false;
+            currentStep = "";
+            simulationResults = null;
+
+            // Remove node highlights
+            document.querySelectorAll(".node").forEach(node => {
+                node.className = "node";
+            });
+
+            // Remove pulse animations
+            document.querySelectorAll(".connection-pulse").forEach(pulse => {
+                pulse.classList.remove("pulse-active");
+                pulse.style.opacity = 0;
+            });
+
+            // Status Badge reset
+            const statusDot = document.getElementById("status-dot");
+            statusDot.className = "status-dot idle";
+            document.getElementById("status-text").innerText = "IDLE";
+            
+            // Clear inspector display
+            inspectNode('input');
+            document.getElementById("run-btn").disabled = false;
+        }
+
+        // Sim Execution engine
+        function parseFormulation(text) {
+            // JS Simulation of Regex Engine in agent.py
+            const lower = text.toLowerCase();
+            const extracted = {
+                chemicals: [],
+                hardware: []
+            };
+
+            // Pattern A: <number>% <Chemical>
+            const patternA = /(\d+(?:\.\d+)?)\s*(%)\s+([A-Za-z\-]+)/g;
+            let match;
+            const seenChems = new Set();
+
+            while ((match = patternA.exec(text)) !== null) {
+                const name = match[3];
+                const conc = match[1] + match[2];
+                if (!seenChems.has(name.toLowerCase())) {
+                    seenChems.add(name.toLowerCase());
+                    extracted.chemicals.push({ name, conc });
+                }
+            }
+
+            // Pattern B: <number> ppm <Chemical>
+            const patternB = /(\d+(?:\.\d+)?)\s*(ppm)\s+([A-Za-z\-]+)/gi;
+            while ((match = patternB.exec(text)) !== null) {
+                const name = match[3];
+                const conc = match[1] + " " + match[2];
+                if (!seenChems.has(name.toLowerCase())) {
+                    seenChems.add(name.toLowerCase());
+                    extracted.chemicals.push({ name, conc });
+                }
+            }
+
+            // Pattern C: <Chemical>: <number>%
+            const patternC = /([A-Za-z\-]+)\s*:\s*(\d+(?:\.\d+)?)\s*(%)/gi;
+            while ((match = patternC.exec(text)) !== null) {
+                const name = match[1];
+                const conc = match[2] + match[3];
+                if (!seenChems.has(name.toLowerCase())) {
+                    seenChems.add(name.toLowerCase());
+                    extracted.chemicals.push({ name, conc });
+                }
+            }
+
+            // Temperature Match
+            const tempMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:°[Cc]|[Cc](?!\w)|[Cc]elsius)/i);
+            const targetTemp = tempMatch ? parseFloat(tempMatch[1]) : null;
+
+            // Hardware match
+            Object.keys(HARDWARE_LIMITS).forEach(hw => {
+                if (lower.includes(hw)) {
+                    extracted.hardware.push({
+                        name: hw,
+                        temp: targetTemp
+                    });
+                }
+            });
+
+            return extracted;
+        }
+
+        function calculateCompliance(extracted) {
+            let chemicalFlags = [];
+            let hardwareFlags = [];
+            let boilingHazards = [];
+
+            // Check Chemicals
+            extracted.chemicals.forEach(chem => {
+                const nameKey = chem.name.toLowerCase();
+                if (nameKey === "water") {
+                    chemicalFlags.push({
+                        chemical_name: chem.name,
+                        is_compliant: true,
+                        detected_concentration: chem.conc,
+                        regulatory_limit: "No OSHA exposure limit",
+                        source_citation: "Water is not a regulated hazardous substance under OSHA."
+                    });
+                    return;
+                }
+
+                const doc = CHROMADB_DOCS[nameKey];
+                if (!doc) {
+                    chemicalFlags.push({
+                        chemical_name: chem.name,
+                        is_compliant: true,
+                        detected_concentration: chem.conc,
+                        regulatory_limit: "Unknown: No regulatory data found",
+                        source_citation: ""
+                    });
+                    return;
+                }
+
+                // Parse RAG Limits
+                let limitPpm = null;
+                let limitPct = null;
+
+                const ppmMatch = doc.match(/(\d+(?:\.\d+)?)\s*ppm\s*TWA/i);
+                if (ppmMatch) limitPpm = parseFloat(ppmMatch[1]);
+
+                const pctMatch = doc.match(/(\d+(?:\.\d+)?)%\s*by volume/i);
+                if (pctMatch) limitPct = parseFloat(pctMatch[1]);
+
+                const concVal = parseFloat(chem.conc);
+                const isPct = chem.conc.includes("%");
+                const isPpm = chem.conc.toLowerCase().includes("ppm");
+
+                let isCompliant = true;
+                let regulatoryLimit = "See OSHA regulations";
+
+                if (isPct && limitPct !== null) {
+                    regulatoryLimit = `${limitPct}% by volume (max)`;
+                    isCompliant = concVal <= limitPct;
+                } else if (isPct && limitPpm !== null) {
+                    regulatoryLimit = `${limitPpm} ppm TWA (airborne, not applicable to liquid volume %)`;
+                    isCompliant = true; // safe liquid carrier
+                } else if (isPpm && limitPpm !== null) {
+                    regulatoryLimit = `${limitPpm} ppm TWA`;
+                    isCompliant = concVal <= limitPpm;
+                }
+
+                chemicalFlags.push({
+                    chemical_name: chem.name,
+                    is_compliant: isCompliant,
+                    detected_concentration: chem.conc,
+                    regulatory_limit: regulatoryLimit,
+                    source_citation: doc
+                });
+            });
+
+            // Check Hardware (MCP simulation)
+            extracted.hardware.forEach(hw => {
+                const maxTemp = HARDWARE_LIMITS[hw.name];
+                const isSafe = hw.temp !== null ? hw.temp <= maxTemp : true;
+
+                hardwareFlags.push({
+                    equipment_name: hw.name,
+                    target_temperature_celsius: hw.temp,
+                    max_safe_temperature_celsius: maxTemp,
+                    is_safe: isSafe
+                });
+            });
+
+            // Boiling Hazards
+            if (extracted.hardware.length > 0 && extracted.hardware[0].temp !== null) {
+                const targetTemp = extracted.hardware[0].temp;
+                extracted.chemicals.forEach(chem => {
+                    const bp = BOILING_POINTS[chem.name.toLowerCase()];
+                    if (bp && targetTemp > bp) {
+                        boilingHazards.push(`${chem.name} (bp ${bp}°C) is heated to ${targetTemp}°C — severe vapor pressure / explosion risk`);
+                    }
+                });
+            }
+
+            // Global Status
+            const isCopilot = PRESETS[selectedPreset].isCopilot;
+            const anyChemFail = chemicalFlags.some(f => !f.is_compliant);
+            const anyHwFail = hardwareFlags.some(f => !f.is_safe);
+
+            let status = "APPROVED";
+            if (isCopilot) {
+                status = "COPILOT";
+            } else if (anyChemFail || anyHwFail) {
+                status = "REJECTED";
+            } else if (boilingHazards.length > 0) {
+                status = "PARTIAL";
+            }
+
+            // LLM Summary Generation Simulation
+            let summary = "All chemical concentrations and hardware parameters are compliant with safety rules.";
+            if (status === "COPILOT") {
+                summary = "Both Acetone and Toluene require chemical splash goggles and nitrile gloves. Use in a fume hood; both are highly flammable, so strictly keep away from ignition sources.";
+            } else if (status === "REJECTED") {
+                let violations = [];
+                chemicalFlags.forEach(f => {
+                    if (!f.is_compliant) violations.push(`${f.chemical_name} concentration of ${f.detected_concentration} exceeds OSHA limit of ${f.regulatory_limit}`);
+                });
+                hardwareFlags.forEach(f => {
+                    if (!f.is_safe) violations.push(`${f.equipment_name} operated at ${f.target_temperature_celsius}°C exceeds safe threshold of ${f.max_safe_temperature_celsius}°C`);
+                });
+                summary = "Formulation rejected: " + violations.join(", and ") + ".";
+            } else if (status === "PARTIAL") {
+                summary = `Formulation approved with warnings: operating temperature exceeds boiling point of ${boilingHazards.map(h => h.split(' ')[0]).join(', ')}, creating secondary pressure hazards.`;
+            }
+
+            return {
+                chemical_flags: chemicalFlags,
+                hardware_flags: hardwareFlags,
+                boiling_hazards: boilingHazards,
+                overall_approval_status: status,
+                summary: summary
+            };
+        }
+
+        // Run Simulation loop
+        async function startSimulation() {
+            if (isSimulating) return;
+            isSimulating = true;
+            document.getElementById("run-btn").disabled = true;
+
+            const textInput = document.getElementById("formulation-input").value;
+            
+            // Build actual state simulation results
+            const extracted = parseFormulation(textInput);
+            const evaluation = calculateCompliance(extracted);
+            
+            simulationResults = {
+                input: textInput,
+                extractor: extracted,
+                rag: evaluation.chemical_flags,
+                mcp: evaluation.hardware_flags,
+                phys: evaluation.boiling_hazards,
+                solver: {
+                    chemical_flags: evaluation.chemical_flags,
+                    hardware_flags: evaluation.hardware_flags,
+                    boiling_hazards: evaluation.boiling_hazards,
+                    overall_approval_status: evaluation.overall_approval_status
+                },
+                llm: evaluation.summary,
+                pydantic: evaluation
+            };
+
+            const isCopilot = PRESETS[selectedPreset].isCopilot;
+            const steps = isCopilot 
+                ? ["input", "extractor", "cache", "rag", "llm"] 
+                : ["input", "extractor", "cache", "rag", "mcp", "phys", "solver", "llm", "pydantic"];
+            
+            // Reset node highlights
+            document.querySelectorAll(".node").forEach(n => n.className = "node");
+            document.querySelectorAll(".connection-pulse").forEach(p => p.classList.remove("pulse-active"));
+
+            // Change overall pipeline status to running
+            const statusDot = document.getElementById("status-dot");
+            statusDot.className = "status-dot running";
+            document.getElementById("status-text").innerText = "RUNNING AUDIT...";
+
+            // Cycle through steps
+            for (let i = 0; i < steps.length; i++) {
+                const step = steps[i];
+                currentStep = step;
+                
+                // Highlight Node
+                const nodeEl = document.getElementById(`node-${step}`);
+                nodeEl.className = "node active-now";
+                inspectNode(step);
+
+                // Activate connection pulses outgoing
+                if (step === "input") {
+                    document.getElementById("pulse-input-extractor").classList.add("pulse-active");
+                } else if (step === "extractor") {
+                    document.getElementById("pulse-extractor-cache").classList.add("pulse-active");
+                    if (!isCopilot) {
+                        document.getElementById("pulse-extractor-mcp").classList.add("pulse-active");
+                        document.getElementById("pulse-extractor-phys").classList.add("pulse-active");
+                    }
+                } else if (step === "cache") {
+                    document.getElementById("pulse-cache-rag").classList.add("pulse-active");
+                } else if (step === "rag") {
+                    if (isCopilot) {
+                        document.getElementById("pulse-rag-llm").classList.add("pulse-active");
+                    } else {
+                        document.getElementById("pulse-rag-solver").classList.add("pulse-active");
+                    }
+                } else if (step === "mcp") {
+                    document.getElementById("pulse-mcp-solver").classList.add("pulse-active");
+                } else if (step === "phys") {
+                    document.getElementById("pulse-phys-solver").classList.add("pulse-active");
+                } else if (step === "solver") {
+                    document.getElementById("pulse-solver-llm").classList.add("pulse-active");
+                } else if (step === "llm") {
+                    document.getElementById("pulse-llm-pydantic").classList.add("pulse-active");
+                }
+
+                // Wait for step visibility
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Mark step completed
+                if (step === "rag" || step === "mcp") {
+                    const flags = simulationResults[step];
+                    const failed = flags.some(f => f.is_compliant === false || f.is_safe === false);
+                    nodeEl.className = failed ? "node failed-state" : "node completed";
+                } else {
+                    nodeEl.className = "node completed";
+                }
+            }
+
+            // Set final status
+            const finalStatus = evaluation.overall_approval_status;
+            statusDot.className = `status-dot ${finalStatus === 'APPROVED' ? 'passed' : finalStatus === 'REJECTED' ? 'failed' : 'partial'}`;
+            document.getElementById("status-text").innerText = finalStatus;
+
+            // Trigger preview UI modal render
+            showOutputPreview(evaluation);
+            
+            isSimulating = false;
+            document.getElementById("run-btn").disabled = false;
+        }
+
+        // View step information inside data inspector panel
+        function inspectNode(nodeKey) {
+            if (!NODE_DETAILS[nodeKey]) return;
+
+            const detail = NODE_DETAILS[nodeKey];
+            document.getElementById("ins-title").innerHTML = `
+                <svg class="node-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                ${detail.title}
+            `;
+            document.getElementById("ins-desc").innerText = detail.desc;
+            
+            const linkEl = document.getElementById("ins-link");
+            linkEl.innerText = `View code in ${detail.file}`;
+            
+            // Format Inspector Data Output
+            let displayData = "No simulation active. Data empty.";
+            if (simulationResults) {
+                const stepData = simulationResults[nodeKey];
+                displayData = JSON.stringify(stepData, null, 4);
+            } else {
+                // Pre-sim mock templates
+                if (nodeKey === "input") {
+                    displayData = document.getElementById("formulation-input").value;
+                } else if (nodeKey === "extractor") {
+                    displayData = "Output Schema Expected:\n{\n    \"chemicals\": [ {\"name\": string, \"concentration\": string} ],\n    \"hardware\": [ {\"name\": string, \"target_temperature_celsius\": float} ]\n}";
+                } else if (nodeKey === "cache") {
+                    displayData = "Cache Status:\nChecking SQLite WAL cache.db...\n{ 'status': 'miss', 'latency': '0.001s' }";
+                } else if (nodeKey === "rag") {
+                    displayData = "Queries ChromaDB collection 'regulatory_data' semantic matching chemical keys. Parses Permissible Exposure Limits (PEL).";
+                } else if (nodeKey === "mcp") {
+                    displayData = "FastMCP Command Execution:\npython mcp_server.py stdio\nExposes tool: check_hardware_compatibility()";
+                } else if (nodeKey === "phys") {
+                    displayData = "Fetches chemical boiling point physical constants from local Python lookup table to detect thermal risks.";
+                } else if (nodeKey === "solver") {
+                    displayData = "Solves compliance matrix logic deterministically in microseconds.";
+                } else if (nodeKey === "llm") {
+                    displayData = "LLM API query (Gemini -> OpenRouter):\nSystem: Write ONE safety finding sentence...\nInput: [Violations List]";
+                } else if (nodeKey === "pydantic") {
+                    displayData = "Applies strict validation schema models.ComplianceReport.";
+                }
+            }
+
+            document.getElementById("ins-data").innerText = displayData;
+        }
+
+        // Output Preview Modal Render
+        function showOutputPreview(report) {
+            const overlay = document.getElementById("overlay");
+            const card = document.getElementById("preview-card");
+            
+            // Header Color-Coding
+            const status = report.overall_approval_status;
+            const badge = document.getElementById("gr-badge");
+            
+            if (status === "COPILOT") {
+                badge.innerText = "💬 COPILOT CHAT";
+                badge.style.color = "#06b6d4";
+            } else {
+                badge.innerText = (status === "APPROVED" ? "✅ " : status === "REJECTED" ? "❌ " : "⚠️ ") + status;
+                if (status === "APPROVED") {
+                    badge.style.color = "var(--success)";
+                } else if (status === "REJECTED") {
+                    badge.style.color = "var(--danger)";
+                } else {
+                    badge.style.color = "var(--warning)";
+                }
+            }
+
+            // Summary
+            document.getElementById("gr-summary").innerText = report.summary;
+            document.getElementById("gr-summary").style.borderLeftColor = status === "COPILOT" ? "#06b6d4" : (status === "APPROVED" ? "var(--success)" : status === "REJECTED" ? "var(--danger)" : "var(--warning)");
+
+            // Chemical cards render
+            const chemContainer = document.getElementById("gr-chem-cards");
+            chemContainer.innerHTML = "";
+            if (report.chemical_flags.length > 0) {
+                report.chemical_flags.forEach(flag => {
+                    const cardClass = flag.is_compliant ? "gradio-card pass" : "gradio-card fail";
+                    const complianceLabel = flag.is_compliant ? "COMPLIANT" : "NON-COMPLIANT";
+                    const labelColor = flag.is_compliant ? "var(--success)" : "var(--danger)";
+                    const icon = flag.is_compliant ? "✅" : "❌";
+
+                    chemContainer.innerHTML += `
+                        <div class="${cardClass}">
+                            <div class="gradio-card-title">
+                                <span>${icon} ${flag.chemical_name}</span>
+                                <span style="font-size:0.7rem; color:${labelColor}; font-weight:700;">${complianceLabel}</span>
+                            </div>
+                            <div class="gradio-card-label">Detected Concentration</div>
+                            <div class="gradio-card-value">${flag.detected_concentration}</div>
+                            <div class="gradio-card-label">Regulatory Limit</div>
+                            <div class="gradio-card-value">${flag.regulatory_limit}</div>
+                            <div class="gradio-citation">📖 Source: ${flag.source_citation ? flag.source_citation : "No citation found."}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                chemContainer.innerHTML = "<p style='color:var(--text-muted); font-size:0.8rem;'>No chemicals detected.</p>";
+            }
+
+            // Hardware cards render
+            const hwContainer = document.getElementById("gr-hw-cards");
+            hwContainer.innerHTML = "";
+            if (report.hardware_flags.length > 0) {
+                report.hardware_flags.forEach(flag => {
+                    const cardClass = flag.is_safe ? "gradio-card pass" : "gradio-card fail";
+                    const safetyLabel = flag.is_safe ? "SAFE" : "UNSAFE";
+                    const labelColor = flag.is_safe ? "var(--success)" : "var(--danger)";
+                    const icon = flag.is_safe ? "✅" : "❌";
+
+                    hwContainer.innerHTML += `
+                        <div class="${cardClass}">
+                            <div class="gradio-card-title">
+                                <span>${icon} ${flag.equipment_name}</span>
+                                <span style="font-size:0.7rem; color:${labelColor}; font-weight:700;">${safetyLabel}</span>
+                            </div>
+                            <div class="gradio-card-label">Operating Temperature</div>
+                            <div class="gradio-card-value">${flag.target_temperature_celsius}°C</div>
+                            <div class="gradio-card-label">Vessel Max Safe Boundary</div>
+                            <div class="gradio-card-value">${flag.max_safe_temperature_celsius}°C</div>
+                        </div>
+                    `;
+                });
+            } else {
+                hwContainer.innerHTML = "<p style='color:var(--text-muted); font-size:0.8rem;'>No hardware equipment detected.</p>";
+            }
+
+            // Display modal
+            overlay.classList.add("show");
+            card.classList.add("show");
+        }
+
+        function closePreview() {
+            document.getElementById("overlay").classList.remove("show");
+            document.getElementById("preview-card").classList.remove("show");
+        }
+    </script>
+</body>
+</html>

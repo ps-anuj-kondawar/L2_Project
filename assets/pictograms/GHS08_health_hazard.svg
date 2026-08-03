@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="60" height="60">
+  <polygon points="50,3 97,50 50,97 3,50" fill="#ffffff" stroke="#cc0000" stroke-width="6"/>
+  <!-- Bust Silhouette with Starburst -->
+  <circle cx="50" cy="30" r="8" fill="#000000"/>
+  <path d="M 34 65 C 34 45, 66 45, 66 65 Z" fill="#000000"/>
+  <!-- Starburst inside chest -->
+  <polygon points="50,42 52,47 57,47 53,50 55,55 50,52 45,55 47,50 43,47 48,47" fill="#ffffff"/>
+</svg>

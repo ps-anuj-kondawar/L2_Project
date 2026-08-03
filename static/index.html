@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChemShield AI — Chemical Safety &amp; SDS Platform</title>
+  <meta name="description" content="Automated OSHA compliance auditing, GHS SDS authoring, and multi agent safety intelligence for chemical formulations." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+
+  <!-- TOP NAVIGATION -->
+  <nav class="top-nav" role="navigation" aria-label="Main navigation">
+    <span class="nav-brand">ChemShield AI</span>
+    <div class="nav-links" role="tablist">
+      <button class="nav-link active" id="nav-audit"   data-section="audit"   role="tab" aria-selected="true"  aria-controls="section-audit">Compliance Audit</button>
+      <button class="nav-link"        id="nav-sds"     data-section="sds"     role="tab" aria-selected="false" aria-controls="section-sds">GHS SDS</button>
+      <button class="nav-link"        id="nav-trace"   data-section="trace"   role="tab" aria-selected="false" aria-controls="section-trace">Agent Trace</button>
+      <button class="nav-link"        id="nav-copilot" data-section="copilot" role="tab" aria-selected="false" aria-controls="section-copilot">Safety Copilot</button>
+    </div>
+    <button class="btn-pill-primary" id="global-run-btn" aria-label="Run safety audit">
+      Run Audit <span class="arrow-icon">&#8594;</span>
+    </button>
+  </nav>
+
+  <!-- MAIN CONTENT CONTAINER WITH RIGHT SIDEBAR -->
+  <main class="main-content blueprint-bg" role="main">
+    <div class="app-layout">
+
+      <!-- LEFT COLUMN: MAIN WORKSPACE -->
+      <div class="app-main-column">
+
+        <!-- 1. INPUT SECTION -->
+        <div class="input-panel-card" id="input-section">
+          <div class="audit-card-header">
+            <span class="audit-card-title">Formulation Input</span>
+            <span class="status-chip chip-NEUTRAL" id="run-status-chip">Ready</span>
+          </div>
+
+          <div class="scenarios-row" id="scenarios-row" role="group" aria-label="Quick scenario presets">
+            <button class="scenario-chip" data-key="rejected_benzene">Benzene Rejected</button>
+            <button class="scenario-chip" data-key="approved_ipa">IPA Approved</button>
+            <button class="scenario-chip" data-key="partial_toluene">Toluene Partial</button>
+            <button class="scenario-chip" data-key="chloroform_web">Chloroform Web</button>
+            <button class="scenario-chip" data-key="typo_auto_correct">Typo Correction</button>
+          </div>
+
+          <textarea
+            class="input-area"
+            id="formulation-input"
+            placeholder="Enter formulation note, e.g. Formula B: 94% Water, 6% Benzene. Heat to 120°C in a soda lime glass beaker."
+            aria-label="Formulation input"
+            rows="3"
+          ></textarea>
+
+          <button class="btn-pill-primary btn-full" id="card-run-btn" aria-label="Run audit">
+            <span id="card-run-label">Run Compliance Audit</span>
+            <span class="arrow-icon" id="card-run-arrow">&#8594;</span>
+          </button>
+        </div>
+
+        <!-- 2. COMPLIANCE AUDIT SECTION -->
+        <section id="section-audit" role="tabpanel" aria-labelledby="nav-audit">
+          <div id="verdict-banner" class="hidden"></div>
+
+          <div class="metrics-grid hidden" id="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label">Total Latency</div>
+              <div class="metric-value" id="mv-latency">--</div>
+              <div class="metric-sub">Pipeline execution time</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">RAG Relevancy</div>
+              <div class="metric-value" id="mv-rag">--</div>
+              <div class="metric-sub">OSHA vector precision</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Tool Success</div>
+              <div class="metric-value" id="mv-tools">--</div>
+              <div class="metric-sub">MCP call success rate</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Reflection</div>
+              <div class="metric-value" id="mv-reflect">--</div>
+              <div class="metric-sub">Self correction loops</div>
+            </div>
+          </div>
+
+          <div class="result-panel panel-visible" id="audit-results-grid">
+            <div class="panel-header">
+              <span class="panel-title">
+                <span class="panel-title-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                </span>
+                Executive Summary &amp; Compliance Audit
+              </span>
+            </div>
+            <div class="summary-box" id="summary-text">Run an audit to see the compliance summary.</div>
+            <span class="label-cap">Detected Chemical &amp; Hardware Flags</span>
+            <div class="flags-container" id="flags-container">
+              <div class="empty-state">No flags yet. Run an audit to see results.</div>
+            </div>
+
+            <!-- AUDIT EVALUATION METRICS BAR -->
+            <div class="panel-eval-bar" id="audit-eval-bar">
+              <div class="eval-bar-title">Evaluation Metrics</div>
+              <div class="eval-bar-items">
+                <div class="eval-item"><span>Total Latency:</span> <strong id="eval-audit-latency">--</strong></div>
+                <div class="eval-item"><span>RAG Relevancy:</span> <strong id="eval-audit-rag">--</strong></div>
+                <div class="eval-item"><span>Tool Success:</span> <strong id="eval-audit-tools">--</strong></div>
+                <div class="eval-item"><span>Instruction Score:</span> <strong id="eval-audit-score">100%</strong></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. GHS SDS SECTION -->
+        <section id="section-sds" role="tabpanel" aria-labelledby="nav-sds" class="hidden">
+          <div class="result-panel panel-visible">
+            <div class="panel-header">
+              <span class="panel-title">
+                <span class="panel-title-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </span>
+                GHS SDS Document Preview
+              </span>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-pill-primary btn-sm" id="generate-sds-btn">Generate GHS SDS</button>
+                <button class="btn-pill-secondary btn-sm" id="print-sds-btn">Print / Save as PDF</button>
+              </div>
+            </div>
+
+            <div class="metrics-grid metrics-grid-3col">
+              <div class="metric-card">
+                <div class="metric-label">GHS Sections</div>
+                <div class="metric-value" id="sds-mv-sections">--</div>
+                <div class="metric-sub">of 16 required</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Reflection</div>
+                <div class="metric-value" id="sds-mv-reflect">--</div>
+                <div class="metric-sub">GHS validation</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Iterations</div>
+                <div class="metric-value" id="sds-mv-iters">--</div>
+                <div class="metric-sub">Self correction loops</div>
+              </div>
+            </div>
+
+            <div class="sds-viewer" id="sds-html-wrapper">
+              <p class="empty-state">Run an audit to generate a GHS compliant SDS document.</p>
+            </div>
+
+            <!-- SDS EVALUATION METRICS BAR -->
+            <div class="panel-eval-bar" id="sds-eval-bar">
+              <div class="eval-bar-title">Evaluation Metrics</div>
+              <div class="eval-bar-items">
+                <div class="eval-item"><span>GHS Sections:</span> <strong id="eval-sds-sections">16 / 16</strong></div>
+                <div class="eval-item"><span>Reflection Audit:</span> <strong id="eval-sds-reflect">PASSED</strong></div>
+                <div class="eval-item"><span>Signal Word Precision:</span> <strong id="eval-sds-precision">100%</strong></div>
+                <div class="eval-item"><span>Authoring Latency:</span> <strong id="eval-sds-latency">--</strong></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. AGENT TRACE SECTION -->
+        <section id="section-trace" role="tabpanel" aria-labelledby="nav-trace" class="hidden">
+          <div class="result-panel panel-visible">
+            <div class="panel-header">
+              <span class="panel-title">
+                <span class="panel-title-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </span>
+                Agent Execution Trace
+              </span>
+            </div>
+
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-label">Total Steps</div>
+                <div class="metric-value" id="trace-mv-steps">--</div>
+                <div class="metric-sub">Agent actions taken</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Agents Used</div>
+                <div class="metric-value" id="trace-mv-agents">--</div>
+                <div class="metric-sub">Distinct agents invoked</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Success Rate</div>
+                <div class="metric-value" id="trace-mv-success">--</div>
+                <div class="metric-sub">Steps completed cleanly</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Avg Step Time</div>
+                <div class="metric-value" id="trace-mv-avg">--</div>
+                <div class="metric-sub">Mean duration per step</div>
+              </div>
+            </div>
+
+            <div class="trace-list" id="trace-list">
+              <div class="empty-state">No trace data yet. Run an audit first.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. COPILOT SECTION -->
+        <section id="section-copilot" role="tabpanel" aria-labelledby="nav-copilot" class="hidden">
+          <div class="result-panel panel-visible">
+            <div class="panel-header">
+              <span class="panel-title">
+                <span class="panel-title-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                </span>
+                Safety Copilot
+              </span>
+              <span class="status-chip chip-NEUTRAL">RAG + Web Grounded</span>
+            </div>
+
+            <div id="context-banner" class="context-banner hidden">
+              <span class="context-banner-label">Active Formulation</span>
+              <span class="context-banner-text" id="context-banner-text"></span>
+              <button class="context-clear-btn" id="context-clear-btn">Clear Context</button>
+            </div>
+
+            <div class="chat-area" id="chat-box" aria-live="polite" aria-label="Copilot chat messages">
+              <div class="chat-msg bot">
+                <div class="chat-bubble">
+                  Hello. I am your lab safety copilot, grounded in OSHA regulations and PubChem data.
+                  Run an audit first and I will automatically be aware of your active formulation —
+                  you can then ask me follow up questions without retyping chemicals.
+                </div>
+                <div class="chat-meta">ChemShield AI</div>
+              </div>
+            </div>
+
+            <div class="chat-input-row">
+              <input
+                class="chat-field"
+                type="text"
+                id="chat-input"
+                placeholder="Ask about exposure limits, storage, PPE requirements..."
+                aria-label="Chat message input"
+              />
+              <button class="btn-pill-primary" id="send-chat-btn" aria-label="Send message">Send</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT SIDEBAR: REAL-TIME MULTI-AGENT EXECUTION & TELEMETRY -->
+      <aside class="app-sidebar" aria-label="Live execution telemetry">
+        <div class="sidebar-card">
+
+          <div class="sidebar-header">
+            <span class="sidebar-title">
+              <span class="live-dot" id="sidebar-live-dot"></span>
+              Live Pipeline Execution
+            </span>
+            <button class="btn-pill-secondary btn-sm" id="clear-logs-btn">Clear</button>
+          </div>
+
+          <!-- Live Stage Tracker -->
+          <div class="pipeline-tracker" id="pipeline-tracker">
+            <div class="tracker-step" id="step-extract">
+              <span class="step-num">1</span>
+              <div class="step-info">
+                <span class="step-name">Entity Extraction</span>
+                <span class="step-sub" id="sub-extract">Parsing chemicals &amp; equipment</span>
+              </div>
+              <span class="step-badge" id="badge-extract">--</span>
+            </div>
+
+            <div class="tracker-step" id="step-audit">
+              <span class="step-num">2</span>
+              <div class="step-info">
+                <span class="step-name">Multi-Agent Audit</span>
+                <span class="step-sub" id="sub-audit">OSHA RAG, PubChem &amp; MCP</span>
+              </div>
+              <span class="step-badge" id="badge-audit">--</span>
+            </div>
+
+            <div class="tracker-step" id="step-verdict">
+              <span class="step-num">3</span>
+              <div class="step-info">
+                <span class="step-name">Safety Verdict &amp; Summary</span>
+                <span class="step-sub" id="sub-verdict">Calculating OSHA compliance</span>
+              </div>
+              <span class="step-badge" id="badge-verdict">--</span>
+            </div>
+
+            <div class="tracker-step" id="step-sds">
+              <span class="step-num">4</span>
+              <div class="step-info">
+                <span class="step-name">GHS SDS Authoring</span>
+                <span class="step-sub" id="sub-sds">16-section document synthesis</span>
+              </div>
+              <span class="step-badge" id="badge-sds">--</span>
+            </div>
+          </div>
+
+          <!-- Real-time Stream Terminal -->
+          <div class="sidebar-logs-label">Real-Time Data Stream</div>
+          <div class="log-stream" id="log-stream" aria-live="polite" aria-label="Execution log stream">
+            <div class="log-line">Waiting for audit run...</div>
+          </div>
+
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer role="contentinfo">
+    <span class="footer-brand">ChemShield AI</span>
+    <div class="footer-links">
+      <a href="#" aria-label="Privacy Policy">Privacy Policy</a>
+      <a href="#" aria-label="Terms of Service">Terms of Service</a>
+      <a href="#" aria-label="Security Compliance">Security Compliance</a>
+      <a href="/docs" aria-label="API Documentation" target="_blank" rel="noopener">API Docs</a>
+    </div>
+    <span class="footer-copy">&#169; 2025 ChemShield AI. Powered by Gemini.</span>
+  </footer>
+
+  <!-- SDS POPUP WORKER MODAL OVERLAY -->
+  <div class="modal-overlay hidden" id="sds-modal-overlay" role="dialog" aria-modal="true" aria-label="GHS SDS Document Worker Preview">
+    <div class="sds-modal">
+      <div class="sds-modal-header">
+        <span class="sds-modal-title">GHS SDS Document Worker Preview</span>
+        <div class="sds-modal-actions">
+          <button class="btn-pill-primary btn-sm" id="modal-print-btn">Print / Save PDF</button>
+          <button class="btn-pill-secondary btn-sm" id="modal-close-btn">Close</button>
+        </div>
+      </div>
+      <div class="sds-modal-body" id="modal-sds-body"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.cert
+
+# Python dependencies & virtual environments
+venv/
+.venv/
+env/
+.env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Database & local runtime persistence
+cache.db
+*.db
+*.sqlite
+*.sqlite3
+chroma_db/
+
+# IDEs, Editors & Tools
+.vscode/
+.idea/
+*.swp
+*~
+*.suo
+*.user
+*.userossc
+.antigravity/
+.gemini/
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Testing & Coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# Log files
+*.log
+logs/

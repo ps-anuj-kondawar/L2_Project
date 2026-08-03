@@ -1,0 +1,37 @@
+Benzene
+Benzene (C6H6) is classified as a Group 1 human carcinogen by OSHA.
+Permissible Exposure Limit (PEL): 1 ppm TWA (8 hour time weighted average).
+Short Term Exposure Limit (STEL): 5 ppm over 15 minutes.
+Use in open formulation systems is heavily restricted. Maximum allowable
+concentration in open system laboratory formulations is 0.1% by volume.
+Source: OSHA 29 CFR 1910.1028.
+
+Acetone
+Acetone (C3H6O) is a flammable solvent classified as a skin and eye irritant.
+Permissible Exposure Limit (PEL): 1000 ppm TWA.
+Acetone is not classified as a carcinogen. Flash point is -20 degrees C.
+Requires adequate ventilation in laboratory settings. Storage must be away
+from ignition sources.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Toluene
+Toluene (C7H8) is a flammable aromatic solvent and a reproductive hazard.
+Permissible Exposure Limit (PEL): 200 ppm TWA.
+ShortTerm Exposure Limit (STEL): 300 ppm ceiling.
+Prolonged exposure may cause central nervous system effects.
+Pregnant workers must avoid exposure.
+Source: OSHA 29 CFR 1910.1000 Table Z-2.
+
+Methanol
+Methanol (CH3OH) is a highly toxic alcohol. It is metabolised to formaldehyde
+and formic acid in the human body, causing severe neurological damage.
+Permissible Exposure Limit (PEL): 200 ppm TWA.
+Skin absorption is a significant secondary exposure route gloves are mandatory.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Isopropanol
+Isopropanol (C3H8O), also known as IPA, is a common laboratory solvent.
+Permissible Exposure Limit (PEL): 400 ppm TWA.
+Short-Term Exposure Limit (STEL): 500 ppm.
+Low toxicity compared to methanol. Eye and skin irritant at high concentrations.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
