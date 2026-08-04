@@ -25,7 +25,8 @@ from src.infrastructure.cache import (
     get_semantic_cache,
     set_semantic_cache,
     get_summary_cache,
-    set_summary_cache
+    set_summary_cache,
+    get_osha_limits
 )
 from src.core.logger import logger
 from src.core.constants import BOILING_POINTS_CELSIUS
@@ -73,7 +74,12 @@ def _evaluate_summary_quality(summary: str) -> float:
     return 1.0 if len(sentences) == 1 else 0.0
 
 
-async def run_supervisor(user_input: str, intent: str = "audit") -> AgentRunResult:
+async def run_supervisor(
+    user_input: str,
+    intent: str = "audit",
+    region: str = "US",
+    language: str = "en"
+) -> AgentRunResult:
     """
     Supervisor Agent Orchestrator.
     Manages state, dispatches parallel compliance and intelligence agents,
@@ -84,16 +90,19 @@ async def run_supervisor(user_input: str, intent: str = "audit") -> AgentRunResu
         'full' or 'sds' — runs full pipeline including 16-Section SDS Authoring & Reflection.
     """
     start_time = time.time()
-    logger.info(f"[Supervisor] Initializing ChemShield AI workflow (intent='{intent}') for: '{user_input[:60]}'")
+    logger.info(f"[Supervisor] Initializing ChemShield AI workflow (intent='{intent}', region='{region}', lang='{language}') for: '{user_input[:60]}'")
 
     # Step 0: Check SQLite Semantic Cache
-    cached = get_semantic_cache(user_input)
+    cached = get_semantic_cache(user_input, intent=intent, region=region, language=language)
+    if not cached and intent in ("full", "sds", "audit_and_sds"):
+        cached = get_semantic_cache(user_input, intent="audit", region=region, language=language)
+
     if cached:
         result = AgentRunResult.model_validate(cached)
         # If user requested SDS ('full'/'sds') but cache only has audit without SDS, upgrade entry using cached data
         if intent in ("full", "sds", "audit_and_sds") and not result.sds_html:
             logger.info(f"[Supervisor] Semantic cache HIT for compliance audit! Reusing audit data to generate SDS directly...")
-            state = AgentState(user_input=user_input, intent=intent)
+            state = AgentState(user_input=user_input, intent=intent, region=region, language=language)
             comp = result.compliance_report
             state.chemical_flags = comp.chemical_flags
             state.hardware_flags = comp.hardware_flags
@@ -126,7 +135,7 @@ async def run_supervisor(user_input: str, intent: str = "audit") -> AgentRunResu
             result.total_latency_seconds = total_latency
 
             try:
-                set_semantic_cache(user_input, result.model_dump_json())
+                set_semantic_cache(user_input, result.model_dump_json(), intent=intent, region=region, language=language)
                 logger.info("[Supervisor] Successfully upgraded cached audit entry with generated SDS.")
             except Exception as e:
                 logger.warning(f"[Supervisor] Could not update cache: {e}")
@@ -138,7 +147,7 @@ async def run_supervisor(user_input: str, intent: str = "audit") -> AgentRunResu
             result.compliance_report.cache_status = "SQLite Semantic Cache Hit"
             return result
 
-    state = AgentState(user_input=user_input, intent=intent)
+    state = AgentState(user_input=user_input, intent=intent, region=region, language=language)
 
     # Step 1: Entity Extraction & Validation
     chems, hws = await _extract_entities(user_input)
@@ -181,12 +190,13 @@ async def run_supervisor(user_input: str, intent: str = "audit") -> AgentRunResu
 
     # Step 3: Compute Safety Verdict
     boiling_hazards = []
-    target_temp = state.hardware[0].target_temperature_celsius if state.hardware else None
-    if target_temp:
-        for c in state.chemicals:
-            bp = BOILING_POINTS_CELSIUS.get(c.name.lower())
-            if bp and target_temp >= bp:
-                boiling_hazards.append(f"{c.name} (bp {bp}C) heated to {target_temp}C — boiling hazard")
+    for hw in state.hardware:
+        target_temp = hw.target_temperature_celsius
+        if target_temp is not None:
+            for c in state.chemicals:
+                bp = BOILING_POINTS_CELSIUS.get(c.name.lower()) or (get_osha_limits(c.name) or {}).get("boiling_point")
+                if bp and target_temp >= bp:
+                    boiling_hazards.append(f"{c.name} (bp {bp}°C) heated to {target_temp}°C in {hw.name} — boiling hazard")
 
     any_hw_fail   = any(not f.is_safe for f in state.hardware_flags)
     any_chem_fail = any(not f.is_compliant for f in state.chemical_flags)
@@ -283,7 +293,7 @@ async def run_supervisor(user_input: str, intent: str = "audit") -> AgentRunResu
     )
 
     try:
-        set_semantic_cache(user_input, result.model_dump_json())
+        set_semantic_cache(user_input, result.model_dump_json(), intent=intent, region=region, language=language)
         logger.info("[Supervisor] Successfully saved run result to SQLite cache.")
     except Exception as e:
         logger.warning(f"[Supervisor] Could not cache result: {e}")

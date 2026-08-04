@@ -6,6 +6,7 @@ authoritative carcinogen registries, and GHS Rev.9 mixture concentration cut-off
 
 import os
 from typing import Any
+from src.core.logger import logger
 
 # Standard GHS Pictogram Code -> Filename mapping
 GHS_PICTOGRAM_FILES = {
@@ -113,7 +114,7 @@ def load_pictogram_svg(code: str) -> str:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 return f.read()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[GHSRules] Failed to read pictogram SVG '{filepath}': {e}")
     return f"<span style='border:2px solid red; padding:4px; font-weight:bold;'>{code}</span>"
 

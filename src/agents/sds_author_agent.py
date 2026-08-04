@@ -5,7 +5,12 @@ from jinja2 import Template
 from src.core.state import AgentState
 from src.core.models import SDSDocument, SDSSection
 from src.infrastructure.llm_client import chat as llm_chat
-from src.utils.ghs_rules import determine_overall_signal_word, load_pictogram_svg
+from src.utils.ghs_rules import (
+    determine_overall_signal_word,
+    load_pictogram_svg,
+    get_un_transport_info,
+    get_carcinogen_info,
+)
 from src.core.logger import logger
 
 SDS_SECTION_TITLES = [
@@ -70,9 +75,28 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
     transport_str = "; ".join(transport_info_list) if transport_info_list else "UN Number: Not Regulated, Shipping Name: NON-HAZARDOUS CHEMICAL MIXTURE, Class: Not Applicable, Packing Group: Not Applicable"
     carcinogen_str = "; ".join(carcinogen_info_list) if carcinogen_info_list else "No components listed on IARC, NTP, or OSHA carcinogen registries."
 
+    lang_names = {
+        "en": "English",
+        "es": "Spanish (Español)",
+        "fr": "French (Français)",
+        "de": "German (Deutsch)",
+        "ja": "Japanese (日本語)",
+    }
+    target_lang = lang_names.get(state.language.lower(), "English")
+
+    region_specs = {
+        "US": "US OSHA HazCom 2012 / GHS Rev.9",
+        "EU": "EU REACH (EC 1907/2006) & CLP (EC 1272/2008)",
+        "JP": "Japan JIS Z 7253:2019 / ISHL",
+        "CA": "Canada WHMIS 2015 / HPR",
+        "GB": "UK GB-CLP / HSE Regulations",
+    }
+    target_region_spec = region_specs.get(state.region.upper(), f"GHS Rev.9 ({state.region})")
+
     # Prompt LLM for structured 16 sections with strict compliance rules
     prompt = (
-        f"Generate an authoritative, OSHA HazCom 2012 / GHS Rev.9 compliant Safety Data Sheet (SDS) for this chemical formulation.\n\n"
+        f"Generate an authoritative, {target_region_spec} compliant Safety Data Sheet (SDS) for this chemical formulation.\n"
+        f"OUTPUT LANGUAGE REQUIREMENT: You MUST write all section titles and content in {target_lang}.\n\n"
         f"Product Name: {product_name}\n"
         f"Chemical Ingredients & Ratios: {state.chemicals}\n"
         f"Hardware & Storage Temp: {state.hardware}\n"
@@ -84,20 +108,20 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
         "STRICT SDS COMPLIANCE RULES:\n"
         "1. Section 1 MUST list Supplier: ChemShield AI Safety Intelligence Platform, Address: 100 Safety Automation Plaza, Cambridge, MA 02142, Emergency Phone: CHEMTREC 1-800-424-9300.\n"
         "2. Section 3 (Composition) MUST ONLY list Chemical Name, CAS Number, and Concentration Range (% by weight or volume). DO NOT list exposure limits (PEL, TLV, TWA) in Section 3!\n"
-        "3. Section 8 (Exposure Controls) MUST list exact OSHA Permissible Exposure Limits (PELs) TWA/STEL and specific chemical PPE (e.g. Viton/Butyl gloves, chemical splash goggles, fume hood, SCBA/respirator).\n"
+        "3. Section 8 (Exposure Controls) MUST list exact Permissible Exposure Limits (PELs/OELs) TWA/STEL and specific chemical PPE (e.g. Viton/Butyl gloves, chemical splash goggles, fume hood, SCBA/respirator).\n"
         "4. Section 9 (Physical & Chemical Properties) MUST list chemical physical constants (boiling point, flash point, vapor pressure, solubility, appearance, odor) from PubChem data.\n"
-        "5. Section 11 (Toxicology) MUST reference official IARC, NTP, OSHA, and California Prop 65 carcinogen ratings provided above.\n"
+        "5. Section 11 (Toxicology) MUST reference official IARC, NTP, OSHA, and regional carcinogen ratings provided above.\n"
         "6. Section 14 (Transport) MUST contain exact UN Number, Proper Shipping Name, Hazard Class, and Packing Group provided above.\n"
-        "7. Section 15 (Regulatory) MUST state TSCA Inventory status, SARA Title III Section 313 reporting, and California Proposition 65 warnings.\n"
+        "7. Section 15 (Regulatory) MUST state relevant regional regulatory inventory status and warnings.\n"
         "8. Section 16 MUST include NFPA ratings (Health, Flammability, Instability).\n\n"
-        "Return ONLY a JSON array containing exactly 16 objects, one for each SDS section.\n"
+        f"Return ONLY a JSON array containing exactly 16 objects, one for each SDS section, written entirely in {target_lang}.\n"
         "Schema: [{\"section_number\": int (1-16), \"title\": \"string\", \"content\": \"detailed section text\"}]\n"
     )
 
     try:
         raw_json = await llm_chat(
             messages=[
-                {"role": "system", "content": "You are a professional Certified Safety Professional (CSP) and GHS SDS Author. Return JSON only."},
+                {"role": "system", "content": f"You are a Certified Safety Professional (CSP) and GHS SDS Author. Write all outputs in {target_lang} for {target_region_spec}. Return JSON only."},
                 {"role": "user", "content": prompt}
             ],
             json_mode=True

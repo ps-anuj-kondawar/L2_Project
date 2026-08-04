@@ -1,25 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChemShield AI — Chemical Safety &amp; SDS Platform</title>
-  <meta name="description" content="Automated OSHA compliance auditing, GHS SDS authoring, and multi agent safety intelligence for chemical formulations." />
+  <meta name="description"
+    content="Automated OSHA compliance auditing, GHS SDS authoring, and multi agent safety intelligence for chemical formulations." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" />
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
+
 <body>
 
   <!-- TOP NAVIGATION -->
   <nav class="top-nav" role="navigation" aria-label="Main navigation">
     <span class="nav-brand">ChemShield AI</span>
     <div class="nav-links" role="tablist">
-      <button class="nav-link active" id="nav-audit"   data-section="audit"   role="tab" aria-selected="true"  aria-controls="section-audit">Compliance Audit</button>
-      <button class="nav-link"        id="nav-sds"     data-section="sds"     role="tab" aria-selected="false" aria-controls="section-sds">GHS SDS</button>
-      <button class="nav-link"        id="nav-trace"   data-section="trace"   role="tab" aria-selected="false" aria-controls="section-trace">Agent Trace</button>
-      <button class="nav-link"        id="nav-copilot" data-section="copilot" role="tab" aria-selected="false" aria-controls="section-copilot">Safety Copilot</button>
+      <button class="nav-link active" id="nav-audit" data-section="audit" role="tab" aria-selected="true"
+        aria-controls="section-audit">Compliance Audit</button>
+      <button class="nav-link" id="nav-sds" data-section="sds" role="tab" aria-selected="false"
+        aria-controls="section-sds">GHS SDS</button>
+      <button class="nav-link" id="nav-trace" data-section="trace" role="tab" aria-selected="false"
+        aria-controls="section-trace">Agent Trace</button>
+      <button class="nav-link" id="nav-copilot" data-section="copilot" role="tab" aria-selected="false"
+        aria-controls="section-copilot">Safety Copilot</button>
     </div>
     <button class="btn-pill-primary" id="global-run-btn" aria-label="Run safety audit">
       Run Audit <span class="arrow-icon">&#8594;</span>
@@ -40,6 +48,35 @@
             <span class="status-chip chip-NEUTRAL" id="run-status-chip">Ready</span>
           </div>
 
+          <div class="options-row" style="display: flex; gap: 12px; margin-bottom: 12px;">
+            <div style="flex: 1;">
+              <label for="select-region"
+                style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px;">Jurisdiction
+                / Region</label>
+              <select id="select-region" class="select-input"
+                style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 12px; font-weight: 500;">
+                <option value="US" selected>US - OSHA HazCom 2012</option>
+                <option value="EU">EU - REACH / CLP Regulation</option>
+                <option value="JP">JP - JIS Z 7253 / ISHL</option>
+                <option value="CA">CA - WHMIS 2015</option>
+                <option value="GB">UK - GB CLP / HSE</option>
+              </select>
+            </div>
+            <div style="flex: 1;">
+              <label for="select-language"
+                style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px;">SDS
+                Output Language</label>
+              <select id="select-language" class="select-input"
+                style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 12px; font-weight: 500;">
+                <option value="en" selected>English</option>
+                <option value="es">Spanish (Español)</option>
+                <option value="fr">French (Français)</option>
+                <option value="de">German (Deutsch)</option>
+                <option value="ja">Japanese (日本語)</option>
+              </select>
+            </div>
+          </div>
+
           <div class="scenarios-row" id="scenarios-row" role="group" aria-label="Quick scenario presets">
             <button class="scenario-chip" data-key="rejected_benzene">Benzene Rejected</button>
             <button class="scenario-chip" data-key="approved_ipa">IPA Approved</button>
@@ -48,13 +85,9 @@
             <button class="scenario-chip" data-key="typo_auto_correct">Typo Correction</button>
           </div>
 
-          <textarea
-            class="input-area"
-            id="formulation-input"
+          <textarea class="input-area" id="formulation-input"
             placeholder="Enter formulation note, e.g. Formula B: 94% Water, 6% Benzene. Heat to 120°C in a soda lime glass beaker."
-            aria-label="Formulation input"
-            rows="3"
-          ></textarea>
+            aria-label="Formulation input" rows="3"></textarea>
 
           <button class="btn-pill-primary btn-full" id="card-run-btn" aria-label="Run audit">
             <span id="card-run-label">Run Compliance Audit</span>
@@ -93,7 +126,10 @@
             <div class="panel-header">
               <span class="panel-title">
                 <span class="panel-title-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <path d="M9 11l3 3L22 4" />
+                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                  </svg>
                 </span>
                 Executive Summary &amp; Compliance Audit
               </span>
@@ -123,7 +159,10 @@
             <div class="panel-header">
               <span class="panel-title">
                 <span class="panel-title-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
                 </span>
                 GHS SDS Document Preview
               </span>
@@ -160,8 +199,10 @@
               <div class="eval-bar-title">Evaluation Metrics</div>
               <div class="eval-bar-items">
                 <div class="eval-item"><span>GHS Sections:</span> <strong id="eval-sds-sections">16 / 16</strong></div>
-                <div class="eval-item"><span>Reflection Audit:</span> <strong id="eval-sds-reflect">PASSED</strong></div>
-                <div class="eval-item"><span>Signal Word Precision:</span> <strong id="eval-sds-precision">100%</strong></div>
+                <div class="eval-item"><span>Reflection Audit:</span> <strong id="eval-sds-reflect">PASSED</strong>
+                </div>
+                <div class="eval-item"><span>Signal Word Precision:</span> <strong id="eval-sds-precision">100%</strong>
+                </div>
                 <div class="eval-item"><span>Authoring Latency:</span> <strong id="eval-sds-latency">--</strong></div>
               </div>
             </div>
@@ -174,7 +215,9 @@
             <div class="panel-header">
               <span class="panel-title">
                 <span class="panel-title-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
                 </span>
                 Agent Execution Trace
               </span>
@@ -215,7 +258,9 @@
             <div class="panel-header">
               <span class="panel-title">
                 <span class="panel-title-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                  </svg>
                 </span>
                 Safety Copilot
               </span>
@@ -240,13 +285,8 @@
             </div>
 
             <div class="chat-input-row">
-              <input
-                class="chat-field"
-                type="text"
-                id="chat-input"
-                placeholder="Ask about exposure limits, storage, PPE requirements..."
-                aria-label="Chat message input"
-              />
+              <input class="chat-field" type="text" id="chat-input"
+                placeholder="Ask about exposure limits, storage, PPE requirements..." aria-label="Chat message input" />
               <button class="btn-pill-primary" id="send-chat-btn" aria-label="Send message">Send</button>
             </div>
           </div>
@@ -325,11 +365,12 @@
       <a href="#" aria-label="Security Compliance">Security Compliance</a>
       <a href="/docs" aria-label="API Documentation" target="_blank" rel="noopener">API Docs</a>
     </div>
-    <span class="footer-copy">&#169; 2025 ChemShield AI. Powered by Gemini.</span>
+    <span class="footer-copy" id="footer-copy-text">&#169; 2026 ChemShield AI. Powered by Gemini / OpenRouter.</span>
   </footer>
 
   <!-- SDS POPUP WORKER MODAL OVERLAY -->
-  <div class="modal-overlay hidden" id="sds-modal-overlay" role="dialog" aria-modal="true" aria-label="GHS SDS Document Worker Preview">
+  <div class="modal-overlay hidden" id="sds-modal-overlay" role="dialog" aria-modal="true"
+    aria-label="GHS SDS Document Worker Preview">
     <div class="sds-modal">
       <div class="sds-modal-header">
         <span class="sds-modal-title">GHS SDS Document Worker Preview</span>
@@ -344,4 +385,5 @@
 
   <script src="/static/app.js"></script>
 </body>
+
 </html>

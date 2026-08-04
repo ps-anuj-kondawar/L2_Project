@@ -8,13 +8,13 @@ from src.infrastructure.cache import (
     get_conversation_cache,
     set_conversation_cache,
 )
+from src.agents.chemical_agent import _search_chemical_safety
 from src.utils.validator import KNOWN_CHEMICALS
 from src.core.logger import logger
 
 
 async def _get_single_chemical_context(name: str) -> str:
     """Fetch OSHA regulatory context for a single chemical via RAG or web search fallback."""
-    from src.agents.chemical_agent import _search_chemical_safety
     try:
         rag_docs = query_regulations(name)
         top_doc = rag_docs[:1]

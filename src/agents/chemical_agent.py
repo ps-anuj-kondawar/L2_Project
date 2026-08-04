@@ -31,23 +31,26 @@ def _parse_limits(rag_docs: list[str]) -> dict:
     return limits
 
 
+_TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+_tavily_client: TavilyClient | None = TavilyClient(api_key=_TAVILY_API_KEY) if _TAVILY_API_KEY else None
+
+
 def _search_chemical_text_sync(chemical_name: str) -> tuple[str, str]:
-    api_key = os.getenv("TAVILY_API_KEY")
-    if not api_key:
+    if not _tavily_client:
         return "", ""
     try:
-        tav_client = TavilyClient(api_key=api_key)
         query = (
             f"{chemical_name} OSHA TWA permissible exposure limit ppm boiling point "
             f"site:osha.gov OR site:pubchem.ncbi.nlm.nih.gov OR site:cdc.gov"
         )
-        results = tav_client.search(query=query, max_results=3)
+        results = _tavily_client.search(query=query, max_results=3)
         combined_text = " ".join(
             str(r.get("raw_content") or r.get("content") or "") for r in results.get("results", [])
         )
         source_url = results["results"][0]["url"] if results.get("results") else ""
         return combined_text, source_url
-    except Exception:
+    except Exception as e:
+        logger.warning(f"[ChemicalAgent] Tavily search failed for '{chemical_name}': {e}")
         return "", ""
 
 
@@ -116,8 +119,6 @@ async def check_single_chemical(name: str, conc_str: str) -> tuple[ChemicalFlag,
         if web_limits and (web_limits.get("ppm") is not None or web_limits.get("pct") is not None):
             limits = web_limits
             set_osha_limits(name, web_limits)
-            if "boiling_point" in web_limits:
-                BOILING_POINTS_CELSIUS[name.lower()] = web_limits["boiling_point"]
             is_relevant = True
         else:
             return ChemicalFlag(

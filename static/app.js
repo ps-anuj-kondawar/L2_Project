@@ -225,7 +225,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Loading state ─────────────────────────────────────────────────────────
   function setRunning(running, intent = 'audit') {
-    [cardRunBtn, globalRunBtn, generateSdsBtn].filter(Boolean).forEach(b => { b.disabled = running; });
+    const regionEl = document.getElementById('select-region');
+    const langEl = document.getElementById('select-language');
+    [cardRunBtn, globalRunBtn, generateSdsBtn, regionEl, langEl].filter(Boolean).forEach(b => { b.disabled = running; });
     if (running) {
       if (cardRunLabel) cardRunLabel.textContent = (intent === 'sds' || intent === 'full' ? 'Authoring 16-Section GHS SDS...' : 'Running Compliance Audit...');
       if (runStatusChip) {
@@ -271,10 +273,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setRunning(true, intent);
     clearAllResults(intent);
 
-    clearLog(logStream);
-    appendLog(logStream, `[INFO] Connecting to ChemShield AI pipeline (action='${intent}')...`);
+    const regionEl = document.getElementById('select-region');
+    const langEl = document.getElementById('select-language');
+    const region = regionEl ? regionEl.value : 'US';
+    const language = langEl ? langEl.value : 'en';
 
-    const url = `/api/v1/stream?input_text=${encodeURIComponent(text)}&intent=${intent}`;
+    clearLog(logStream);
+    appendLog(logStream, `[INFO] Connecting to ChemShield AI pipeline (action='${intent}', region='${region}', lang='${language}')...`);
+
+    const url = `/api/v1/stream?input_text=${encodeURIComponent(text)}&intent=${intent}&region=${encodeURIComponent(region)}&language=${encodeURIComponent(language)}`;
     const es = new EventSource(url);
     activeEventSource = es;
 
@@ -447,8 +454,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── SDS
     if (result.sds_html) {
-      sdsHtmlWrapper.innerHTML = result.sds_html;
-      if (modalSdsBody) modalSdsBody.innerHTML = result.sds_html;
+      const renderIframeSDS = (container, html) => {
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('sandbox', 'allow-same-origin allow-popups');
+        iframe.style.cssText = 'width:100%;border:none;min-height:600px;';
+        container.innerHTML = '';
+        container.appendChild(iframe);
+        iframe.srcdoc = html;
+      };
+      renderIframeSDS(sdsHtmlWrapper, result.sds_html);
+      if (modalSdsBody) renderIframeSDS(modalSdsBody, result.sds_html);
       if (sdsModalOverlay) sdsModalOverlay.classList.remove('hidden');
     } else {
       sdsHtmlWrapper.innerHTML = '<p class="empty-state">Compliance Audit complete. Click <strong>"Generate GHS SDS"</strong> above to author the 16-section SDS document on demand.</p>';

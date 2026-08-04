@@ -2,6 +2,7 @@ import asyncio
 import os
 import json
 import logging
+from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,7 +22,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -31,9 +32,14 @@ os.makedirs("assets/pictograms", exist_ok=True)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+MAX_INPUT_LENGTH = int(os.getenv("MAX_INPUT_LENGTH", "2000"))
+
+
 class AuditRequest(BaseModel):
     user_input: str = Field(description="Lab formulation note or chemical input text")
-    intent: str = Field(default="audit", description="Action intent: 'audit', 'sds', or 'full'")
+    intent: Literal["audit", "sds", "full"] = Field(default="audit", description="Action intent: 'audit', 'sds', or 'full'")
+    region: str = Field(default="US", description="Regulatory jurisdiction region (e.g. US, EU, JP)")
+    language: str = Field(default="en", description="Output language (e.g. en, es, fr, de, ja)")
 
 
 class ChatRequest(BaseModel):
@@ -92,12 +98,14 @@ async def audit_endpoint(req: AuditRequest):
     """Blocking audit endpoint. Collects logs via a temporary handler and returns them with the result."""
     if not req.user_input or not req.user_input.strip():
         raise HTTPException(status_code=400, detail="Formulation input text cannot be empty.")
+    if len(req.user_input.strip()) > MAX_INPUT_LENGTH:
+        raise HTTPException(status_code=400, detail=f"Input text exceeds maximum length of {MAX_INPUT_LENGTH} characters.")
 
     log_buffer: list[str] = []
     handler = _make_buffer_handler(log_buffer)
     logger.addHandler(handler)
     try:
-        result = await run_supervisor(req.user_input.strip(), intent=req.intent)
+        result = await run_supervisor(req.user_input.strip(), intent=req.intent, region=req.region, language=req.language)
         payload = result.model_dump()
         payload["logs"] = log_buffer[:]
         return JSONResponse(content=payload)
@@ -109,7 +117,7 @@ async def audit_endpoint(req: AuditRequest):
 
 
 @app.get("/api/v1/stream")
-async def stream_audit_endpoint(input_text: str, intent: str = "audit"):
+async def stream_audit_endpoint(input_text: str, intent: str = "audit", region: str = "US", language: str = "en"):
     """
     Server-Sent Events endpoint.
     Attaches a per-request QueueHandler to the shared logger so every logger.info() call
@@ -117,6 +125,8 @@ async def stream_audit_endpoint(input_text: str, intent: str = "audit"):
     """
     if not input_text or not input_text.strip():
         raise HTTPException(status_code=400, detail="Input text required.")
+    if len(input_text.strip()) > MAX_INPUT_LENGTH:
+        raise HTTPException(status_code=400, detail=f"Input text exceeds maximum length of {MAX_INPUT_LENGTH} characters.")
 
     log_queue: asyncio.Queue[str | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
@@ -124,14 +134,14 @@ async def stream_audit_endpoint(input_text: str, intent: str = "audit"):
     logger.addHandler(queue_handler)
 
     async def event_generator():
-        yield _sse("start", {"message": f"Initializing ChemShield AI pipeline (intent='{intent}')..."})
+        yield _sse("start", {"message": f"Initializing ChemShield AI pipeline (intent='{intent}', region='{region}', lang='{language}')..."})
 
         result_holder: dict = {}
         error_holder: dict = {}
 
         async def run_pipeline():
             try:
-                result = await run_supervisor(input_text.strip(), intent=intent)
+                result = await run_supervisor(input_text.strip(), intent=intent, region=region, language=language)
                 result_holder["result"] = result
             except Exception as exc:
                 error_holder["error"] = str(exc)

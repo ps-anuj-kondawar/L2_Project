@@ -35,7 +35,10 @@ wheels/
 
 # Database & local runtime persistence
 cache.db
+cache.db*
 *.db
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 chroma_db/

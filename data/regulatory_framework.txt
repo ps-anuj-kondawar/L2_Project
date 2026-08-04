@@ -26,7 +26,7 @@ Methanol
 Methanol (CH3OH) is a highly toxic alcohol. It is metabolised to formaldehyde
 and formic acid in the human body, causing severe neurological damage.
 Permissible Exposure Limit (PEL): 200 ppm TWA.
-Skin absorption is a significant secondary exposure route gloves are mandatory.
+Skin absorption is a significant secondary exposure route; gloves are mandatory.
 Source: OSHA 29 CFR 1910.1000 Table Z-1.
 
 Isopropanol
@@ -34,4 +34,97 @@ Isopropanol (C3H8O), also known as IPA, is a common laboratory solvent.
 Permissible Exposure Limit (PEL): 400 ppm TWA.
 Short-Term Exposure Limit (STEL): 500 ppm.
 Low toxicity compared to methanol. Eye and skin irritant at high concentrations.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Chloroform
+Chloroform (CHCl3) is a trihalomethane solvent and suspected human carcinogen.
+Permissible Exposure Limit (PEL): 50 ppm Ceiling limit.
+Causes central nervous system depression, liver damage, and kidney failure.
+Must be handled strictly inside a certified chemical fume hood with Viton gloves.
+Source: OSHA 29 CFR 1910.1000 Table Z-2.
+
+Formaldehyde
+Formaldehyde (CH2O) is classified as a Group 1 human carcinogen and sensitiser.
+Permissible Exposure Limit (PEL): 0.75 ppm TWA.
+Short-Term Exposure Limit (STEL): 2 ppm. Action Level: 0.5 ppm.
+Severe respiratory tract hazard and skin sensitiser. Air monitoring required.
+Source: OSHA 29 CFR 1910.1048.
+
+Xylene
+Xylene (C8H10), mixed isomers, is a flammable aromatic solvent.
+Permissible Exposure Limit (PEL): 100 ppm TWA.
+Eye and respiratory tract irritant; narcotic at high concentrations.
+Store in dedicated flammable storage cabinets away from oxidisers.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Hexane
+n-Hexane (C6H14) is a neurotoxic aliphatic hydrocarbon solvent.
+Permissible Exposure Limit (PEL): 500 ppm TWA.
+Causes peripheral neuropathy and numbness in extremities upon chronic exposure.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Ethyl Acetate
+Ethyl Acetate (C4H8O2) is a flammable ester solvent.
+Permissible Exposure Limit (PEL): 400 ppm TWA.
+Vapours may cause drowsiness and dizziness. Irritating to eyes.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Dichloromethane
+Dichloromethane (CH2Cl2), also known as Methylene Chloride, is a volatile halogenated solvent.
+Permissible Exposure Limit (PEL): 25 ppm TWA.
+Short-Term Exposure Limit (STEL): 125 ppm. Suspected carcinogen and cardiac hazard.
+Source: OSHA 29 CFR 1910.1052.
+
+Diethyl Ether
+Diethyl Ether (C4H10O) is an extremely flammable ether solvent.
+Permissible Exposure Limit (PEL): 400 ppm TWA.
+Forms explosive organic peroxides upon prolonged storage and air exposure.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Sodium Hydroxide
+Sodium Hydroxide (NaOH), caustic soda, is a strongly alkaline corrosive solid/solution.
+Permissible Exposure Limit (PEL): 2 mg/m3 TWA.
+Causes severe tissue burns and permanent eye damage. Face shield and rubber apron required.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Sulfuric Acid
+Sulfuric Acid (H2SO4) is a strong corrosive mineral acid and oxidiser.
+Permissible Exposure Limit (PEL): 1 mg/m3 TWA.
+Causes severe skin burns and eye damage. Acid mist is classified as a carcinogen.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Hydrochloric Acid
+Hydrochloric Acid (HCl), muriatic acid, is a corrosive mineral acid gas/solution.
+Permissible Exposure Limit (PEL): 5 ppm Ceiling.
+Inhalation of fumes causes severe respiratory irritation and pulmonary edema.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Ammonia
+Ammonia (NH3) is a corrosive alkaline gas and aqueous solution.
+Permissible Exposure Limit (PEL): 50 ppm TWA.
+Pungent suffocating odor. Corrosive to eyes, skin, and respiratory system.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Hydrogen Peroxide
+Hydrogen Peroxide (H2O2) solution (>8%) is a strong oxidiser and corrosive liquid.
+Permissible Exposure Limit (PEL): 1 ppm TWA.
+May cause fire or explosion in contact with combustible materials.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Acetonitrile
+Acetonitrile (C2H3N) is a toxic, flammable polar solvent.
+Permissible Exposure Limit (PEL): 40 ppm TWA.
+Metabolised to hydrogen cyanide in vivo. Handle in fume hood with nitrile/neoprene gloves.
+Source: OSHA 29 CFR 1910.1000 Table Z-1.
+
+Dimethyl Sulfoxide
+Dimethyl Sulfoxide (C2H6OS), DMSO, is a powerful dipolar aprotic solvent.
+Permissible Exposure Limit (PEL): 250 ppm TWA (WEEL).
+Rapidly penetrates human skin, transporting dissolved solutes directly into bloodstream.
+Source: AIHA WEEL / OSHA Hazard Communication.
+
+Tetrahydrofuran
+Tetrahydrofuran (C4H8O), THF, is a flammable cyclic ether solvent.
+Permissible Exposure Limit (PEL): 200 ppm TWA.
+Short-Term Exposure Limit (STEL): 250 ppm. Forms explosive peroxides on exposure to air.
 Source: OSHA 29 CFR 1910.1000 Table Z-1.

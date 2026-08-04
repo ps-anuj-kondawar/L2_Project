@@ -5,7 +5,7 @@ load_dotenv(override=True)
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
 
-CHROMA_PERSIST_DIR = "./chroma_db"
+CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
 CHROMA_COLLECTION_NAME = "regulatory_data"
 
 RAG_DATA_PATH = "./data/regulatory_framework.txt"

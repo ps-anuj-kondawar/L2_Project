@@ -1,6 +1,7 @@
 from chromadb import PersistentClient
 from src.core.constants import CHROMA_PERSIST_DIR, CHROMA_COLLECTION_NAME, RAG_TOP_K
 from src.infrastructure.cache import get_osha_limits
+from src.core.logger import logger
 
 _client = None
 _collection = None
@@ -11,7 +12,12 @@ def _get_collection():
     global _client, _collection
     if _collection is None:
         _client = PersistentClient(path=CHROMA_PERSIST_DIR)
-        _collection = _client.get_collection(name=CHROMA_COLLECTION_NAME)
+        _collection = _client.get_or_create_collection(name=CHROMA_COLLECTION_NAME)
+        try:
+            if _collection.count() == 0:
+                logger.warning("[RAG] ChromaDB collection is empty. Run 'python -m src.scripts.ingest' to populate regulatory data.")
+        except Exception:
+            pass
     return _collection
 
 

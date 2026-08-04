@@ -9,8 +9,9 @@ from src.core.logger import logger
 load_dotenv(override=True)
 
 LLM_PROVIDER      = os.getenv("LLM_PROVIDER", "gemini")
-GEMINI_MODEL      = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+GEMINI_MODEL      = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 OPENROUTER_MODEL  = os.getenv("OPENROUTER_MODEL", "openrouter/free")
+OPENROUTER_MAX_TOKENS = int(os.getenv("OPENROUTER_MAX_TOKENS", "4096"))
 
 
 LAST_PROVIDER_USED = "Google Gemini"
@@ -67,16 +68,23 @@ async def _gemini_chat(messages: list[dict], json_mode: bool) -> str:
         response_mime_type="application/json" if json_mode else "text/plain",
     )
     system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
-    user_parts  = [m["content"] for m in messages if m["role"] == "user"]
     if system_msg:
         config.system_instruction = system_msg
     
-    user_content = "\n".join(user_parts)
+    contents = []
+    for m in messages:
+        if m["role"] == "system":
+            continue
+        role = "model" if m["role"] == "assistant" else "user"
+        contents.append(types.Content(role=role, parts=[types.Part(text=m["content"])]))
+    
+    if not contents:
+        contents = [types.Content(role="user", parts=[types.Part(text="")])]
     
     async with client.aio as aclient:
         response = await aclient.models.generate_content(
             model=GEMINI_MODEL,
-            contents=user_content,
+            contents=contents,
             config=config,
         )
     result = response.text.strip().replace("\u202f", " ").replace("\xa0", " ").replace("\u2011", "-")
@@ -93,7 +101,7 @@ async def _openrouter_chat(messages: list[dict], json_mode: bool) -> str:
         "model": OPENROUTER_MODEL,
         "messages": messages,
         "temperature": 0.0,
-        "max_tokens": 1024,
+        "max_tokens": OPENROUTER_MAX_TOKENS,
     }
     # Omit response_format parameter on OpenRouter free tier to ensure compatibility across all free models
     
