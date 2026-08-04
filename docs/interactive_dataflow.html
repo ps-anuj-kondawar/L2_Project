@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Data Flow Simulator - Lab Safety Auditor</title>
-    <meta name="description" content="Interactive architecture and dataflow simulation for the Automated Lab Safety Auditor. Check OSHA chemical compliance, hardware compatibility via MCP, and boiling point physical hazards in real-time.">
+    <title>Interactive Data Flow Simulator - ChemShield AI</title>
+    <meta name="description" content="Interactive architecture and dataflow simulation for ChemShield AI Multi-Agent OSHA Chemical Compliance & Multi-Region GHS SDS Platform.">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,6 +94,7 @@
         .badge-list {
             display: flex;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
         .tech-badge {
@@ -124,8 +125,7 @@
             display: grid;
             grid-template-columns: 350px 1fr;
             gap: 2rem;
-            height: calc(100vh - 100px);
-            min-height: 700px;
+            min-height: 750px;
         }
 
         /* Sidebar Control Center */
@@ -218,6 +218,7 @@
         .preset-badge.pass { background: rgba(16, 185, 129, 0.2); color: var(--success); }
         .preset-badge.fail { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
         .preset-badge.partial { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .preset-badge.sds { background: rgba(139, 92, 246, 0.2); color: var(--purple); }
 
         .form-group {
             display: flex;
@@ -318,6 +319,7 @@
             align-items: center;
             justify-content: center;
             backdrop-filter: blur(8px);
+            min-height: 480px;
         }
 
         .canvas-grid-bg {
@@ -373,7 +375,7 @@
             animation: pulse-flow 1.5s linear infinite;
         }
 
-        /* Diagram Architecture Nodes */
+        /* Diagram Architecture Nodes Grid */
         .nodes-layer {
             position: relative;
             width: 100%;
@@ -381,16 +383,16 @@
             z-index: 3;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            padding: 2.5rem;
-            gap: 1.5rem;
+            grid-template-rows: repeat(4, 1fr);
+            padding: 2rem;
+            gap: 1.25rem;
         }
 
         .node {
             background: rgba(17, 24, 39, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 10px;
-            padding: 1rem;
+            padding: 0.85rem 1rem;
             display: flex;
             align-items: center;
             gap: 0.75rem;
@@ -401,8 +403,8 @@
             align-self: center;
             justify-self: center;
             width: 100%;
-            max-width: 240px;
-            height: 75px;
+            max-width: 250px;
+            height: 70px;
         }
 
         .node:hover {
@@ -415,16 +417,21 @@
         #node-input     { grid-column: 1; grid-row: 1; }
         #node-extractor { grid-column: 1; grid-row: 2; }
         #node-cache     { grid-column: 1; grid-row: 3; }
+        #node-pubchem   { grid-column: 1; grid-row: 4; }
+        
         #node-rag       { grid-column: 2; grid-row: 1; }
         #node-mcp       { grid-column: 2; grid-row: 2; }
         #node-phys      { grid-column: 2; grid-row: 3; }
-        #node-solver    { grid-column: 3; grid-row: 1; }
-        #node-llm       { grid-column: 3; grid-row: 2; }
-        #node-pydantic  { grid-column: 3; grid-row: 3; }
+        #node-solver    { grid-column: 2; grid-row: 4; }
+        
+        #node-llm       { grid-column: 3; grid-row: 1; }
+        #node-pydantic  { grid-column: 3; grid-row: 2; }
+        #node-sds       { grid-column: 3; grid-row: 3; }
+        #node-reflect   { grid-column: 3; grid-row: 4; }
 
         .node-icon-wrapper {
-            width: 40px;
-            height: 40px;
+            width: 38px;
+            height: 38px;
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border-color);
@@ -443,13 +450,13 @@
         }
 
         .node-name {
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             font-weight: 600;
             color: #e5e7eb;
         }
 
         .node-meta {
-            font-size: 0.7rem;
+            font-size: 0.68rem;
             color: var(--text-muted);
             margin-top: 0.1rem;
             text-transform: uppercase;
@@ -539,7 +546,7 @@
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.8rem;
             line-height: 1.5;
-            color: #a7f3d0; /* Soft emerald code text */
+            color: #a7f3d0;
             position: relative;
         }
 
@@ -588,14 +595,14 @@
             color: #fff;
         }
 
-        /* Gradio Visual Preview Modal style */
+        /* Output Preview Modal */
         .output-preview-card {
             background: rgba(11, 15, 25, 0.95);
             border: 1px solid rgba(6, 182, 212, 0.2);
             border-radius: 12px;
             padding: 1.5rem;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            max-width: 600px;
+            max-width: 650px;
             width: 90%;
             position: fixed;
             top: 50%;
@@ -653,14 +660,13 @@
             color: #fff;
         }
 
-        /* Gradio Card CSS simulation */
-        .gradio-badge {
-            font-size: 1.3rem;
+        .card-badge {
+            font-size: 1.2rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
 
-        .gradio-card {
+        .output-card {
             background: #1f2937;
             border: 1px solid #374151;
             border-radius: 8px;
@@ -669,10 +675,10 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        .gradio-card.pass { border-left: 4px solid var(--success); }
-        .gradio-card.fail { border-left: 4px solid var(--danger); }
+        .output-card.pass { border-left: 4px solid var(--success); }
+        .output-card.fail { border-left: 4px solid var(--danger); }
 
-        .gradio-card-title {
+        .output-card-title {
             font-weight: 600;
             font-size: 0.95rem;
             display: flex;
@@ -681,7 +687,7 @@
             margin-bottom: 0.4rem;
         }
 
-        .gradio-card-label {
+        .output-card-label {
             font-size: 0.7rem;
             text-transform: uppercase;
             color: var(--text-muted);
@@ -689,12 +695,12 @@
             margin-top: 0.4rem;
         }
 
-        .gradio-card-value {
+        .output-card-value {
             font-size: 0.85rem;
             color: #e5e7eb;
         }
 
-        .gradio-citation {
+        .output-citation {
             background: #111827;
             border: 1px solid #1f2937;
             border-radius: 6px;
@@ -705,7 +711,7 @@
             font-style: italic;
         }
 
-        .gradio-grid {
+        .output-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
@@ -714,7 +720,7 @@
             padding-right: 0.25rem;
         }
 
-        .gradio-grid-col h5 {
+        .output-grid-col h5 {
             font-size: 0.8rem;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -722,7 +728,6 @@
             margin-bottom: 0.5rem;
         }
 
-        /* SVG definitions for standard layouts */
         svg.node-icon {
             width: 20px;
             height: 20px;
@@ -733,7 +738,6 @@
             stroke-linejoin: round;
         }
 
-        /* Responsive */
         @media(max-width: 1100px) {
             main {
                 grid-template-columns: 1fr;
@@ -744,7 +748,7 @@
                 height: auto;
             }
             .viz-container {
-                grid-template-rows: 450px auto;
+                grid-template-rows: 550px auto;
             }
             .nodes-layer {
                 padding: 1rem;
@@ -767,15 +771,16 @@
     <header>
         <div class="header-container">
             <div class="logo-section">
-                <h1>⚗️ Lab Safety Auditor</h1>
-                <p>Interactive Architecture & Dataflow Simulator (Actual Implementation Sandbox)</p>
+                <h1>ChemShield AI</h1>
+                <p>Interactive Multi-Agent Architecture & Workflow Dataflow Simulator</p>
             </div>
             <div class="badge-list">
-                <span class="tech-badge active">RAG (ChromaDB)</span>
+                <span class="tech-badge active">OSHA RAG (ChromaDB)</span>
                 <span class="tech-badge active">SQLite WAL Cache</span>
-                <span class="tech-badge active">MCP (FastMCP)</span>
-                <span class="tech-badge active">LLM (Gemini/OpenRouter)</span>
-                <span class="tech-badge active">Pydantic v2</span>
+                <span class="tech-badge active">FastMCP Tool Server</span>
+                <span class="tech-badge active">Gemini / OpenRouter</span>
+                <span class="tech-badge active">16-Section GHS SDS</span>
+                <span class="tech-badge active">Multi-Region & Multi-Lang</span>
             </div>
         </div>
     </header>
@@ -789,36 +794,36 @@
             <div class="panel">
                 <div class="panel-title">
                     <svg class="node-icon" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
-                    Test Case Presets
+                    Test Case Scenarios
                 </div>
                 <div class="preset-grid">
                     <button class="preset-btn selected" id="preset-1" onclick="loadPreset(1)">
                         <div class="preset-name">
                             <span class="preset-badge fail">REJECTED</span>
-                            Test Case 1
+                            Scenario 1 (Benzene Limit)
                         </div>
-                        <div class="preset-desc">Benzene (6%) + Soda-Lime Glass @ 120°C</div>
+                        <div class="preset-desc">94% Water, 6% Benzene @ 120°C in soda-lime glass</div>
                     </button>
                     <button class="preset-btn" id="preset-2" onclick="loadPreset(2)">
                         <div class="preset-name">
                             <span class="preset-badge pass">APPROVED</span>
-                            Test Case 2
+                            Scenario 2 (IPA Compliant)
                         </div>
-                        <div class="preset-desc">Isopropanol (70%) + Polypropylene @ 25°C</div>
+                        <div class="preset-desc">70% Isopropanol, 30% Water @ 25°C in polypropylene</div>
                     </button>
                     <button class="preset-btn" id="preset-3" onclick="loadPreset(3)">
                         <div class="preset-name">
                             <span class="preset-badge partial">PARTIAL</span>
-                            Test Case 3
+                            Scenario 3 (Boiling Point Hazard)
                         </div>
-                        <div class="preset-desc">Toluene, Acetone + Polypropylene @ 90°C</div>
+                        <div class="preset-desc">500 ppm Toluene, 800 ppm Acetone @ 90°C</div>
                     </button>
                     <button class="preset-btn" id="preset-4" onclick="loadPreset(4)">
                         <div class="preset-name">
-                            <span class="preset-badge pass" style="background: rgba(6, 182, 212, 0.2); color: #06b6d4;">COPILOT</span>
-                            Test Case 4
+                            <span class="preset-badge sds">SDS (EU / SPANISH)</span>
+                            Scenario 4 (Multi-Region SDS)
                         </div>
-                        <div class="preset-desc">What PPE is required for Acetone and Toluene?</div>
+                        <div class="preset-desc">Generate EU REACH GHS SDS in Spanish</div>
                     </button>
                 </div>
             </div>
@@ -829,13 +834,13 @@
                     Audit Input Formulator
                 </div>
                 <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
-                    <label for="formulation-input">Free-Text Lab Notes</label>
+                    <label for="formulation-input">Free-Text Formulation Note</label>
                     <textarea id="formulation-input" style="flex: 1;" placeholder="Enter lab formulation notes, container name, and temperature..."></textarea>
                 </div>
                 <div class="sim-controls">
                     <button class="btn btn-primary" id="run-btn" onclick="startSimulation()">
                         <svg class="node-icon" viewBox="0 0 24 24" style="stroke: #0b0f19;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                        Simulate Audit
+                        Simulate Pipeline
                     </button>
                     <button class="btn btn-secondary" onclick="resetSimulator()">
                         Reset
@@ -854,12 +859,14 @@
                 
                 <!-- SVG Vector Connections -->
                 <svg class="connections-svg" id="canvas-svg">
-                    <!-- Dynamic lines will be injected here relative to boxes -->
                     <path class="connection-line" id="line-input-extractor" />
                     <path class="connection-pulse" id="pulse-input-extractor" />
                     
                     <path class="connection-line" id="line-extractor-cache" />
                     <path class="connection-pulse" id="pulse-extractor-cache" />
+
+                    <path class="connection-line" id="line-extractor-pubchem" />
+                    <path class="connection-pulse" id="pulse-extractor-pubchem" />
                     
                     <path class="connection-line" id="line-cache-rag" />
                     <path class="connection-pulse" id="pulse-cache-rag" />
@@ -885,16 +892,19 @@
                     <path class="connection-line" id="line-llm-pydantic" />
                     <path class="connection-pulse" id="pulse-llm-pydantic" />
                     
-                    <path class="connection-line" id="line-rag-llm" />
-                    <path class="connection-pulse" id="pulse-rag-llm" />
+                    <path class="connection-line" id="line-pydantic-sds" />
+                    <path class="connection-pulse" id="pulse-pydantic-sds" />
+
+                    <path class="connection-line" id="line-sds-reflect" />
+                    <path class="connection-pulse" id="pulse-sds-reflect" />
                 </svg>
 
                 <div class="nodes-layer">
                     
-                    <!-- Col 1: Extractor -->
+                    <!-- Col 1: Extractor & Ingestion -->
                     <div class="node" id="node-input" onclick="inspectNode('input')">
                         <div class="node-icon-wrapper">
-                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                         </div>
                         <div class="node-info">
                             <span class="node-name">Formulation Text</span>
@@ -907,39 +917,49 @@
                             <svg class="node-icon" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         </div>
                         <div class="node-info">
-                            <span class="node-name">RapidFuzz Extractor</span>
-                            <span class="node-meta">Typo Correction</span>
+                            <span class="node-name">Entity Extractor</span>
+                            <span class="node-meta">Supervisor Agent</span>
                         </div>
                     </div>
 
                     <div class="node" id="node-cache" onclick="inspectNode('cache')">
                         <div class="node-icon-wrapper">
-                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path></svg>
                         </div>
                         <div class="node-info">
                             <span class="node-name">SQLite WAL Cache</span>
-                            <span class="node-meta">Multi-Tier State</span>
+                            <span class="node-meta">Two-Tier Storage</span>
                         </div>
                     </div>
 
-                    <!-- Col 2: Validators -->
-                    <div class="node" id="node-rag" onclick="inspectNode('rag')">
+                    <div class="node" id="node-pubchem" onclick="inspectNode('pubchem')">
                         <div class="node-icon-wrapper">
-                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M10 2v7.31L4.93 16.5A2 2 0 0 0 6.6 19.5h10.8a2 2 0 0 0 1.67-3L14 9.31V2"></path></svg>
                         </div>
                         <div class="node-info">
-                            <span class="node-name">ChromaDB Store</span>
-                            <span class="node-meta">Vector RAG</span>
+                            <span class="node-name">PubChem REST API</span>
+                            <span class="node-meta">Intelligence Agent</span>
+                        </div>
+                    </div>
+
+                    <!-- Col 2: Specialized Auditing Agents -->
+                    <div class="node" id="node-rag" onclick="inspectNode('rag')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">ChromaDB OSHA RAG</span>
+                            <span class="node-meta">Chemical Agent</span>
                         </div>
                     </div>
 
                     <div class="node" id="node-mcp" onclick="inspectNode('mcp')">
                         <div class="node-icon-wrapper">
-                            <svg class="node-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                            <svg class="node-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect></svg>
                         </div>
                         <div class="node-info">
                             <span class="node-name">FastMCP Server</span>
-                            <span class="node-meta">Hardware Check</span>
+                            <span class="node-meta">Hardware Agent</span>
                         </div>
                     </div>
 
@@ -948,29 +968,29 @@
                             <svg class="node-icon" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                         </div>
                         <div class="node-info">
-                            <span class="node-name">Boiling Point Check</span>
-                            <span class="node-meta">Physical Hazard</span>
+                            <span class="node-name">Physical Hazards</span>
+                            <span class="node-meta">Boiling Point Check</span>
                         </div>
                     </div>
 
-                    <!-- Col 3: Resolvers -->
                     <div class="node" id="node-solver" onclick="inspectNode('solver')">
                         <div class="node-icon-wrapper">
                             <svg class="node-icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                         </div>
                         <div class="node-info">
-                            <span class="node-name">Policy Solver</span>
-                            <span class="node-meta">Global Matrix</span>
+                            <span class="node-name">Safety Verdict Engine</span>
+                            <span class="node-meta">Policy Calculation</span>
                         </div>
                     </div>
 
+                    <!-- Col 3: Synthesis & SDS Loop -->
                     <div class="node" id="node-llm" onclick="inspectNode('llm')">
                         <div class="node-icon-wrapper">
                             <svg class="node-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                         </div>
                         <div class="node-info">
-                            <span class="node-name">Gemini & OpenRouter</span>
-                            <span class="node-meta">Resilient Fallback</span>
+                            <span class="node-name">Gemini / OpenRouter</span>
+                            <span class="node-meta">LLM Reasoning</span>
                         </div>
                     </div>
 
@@ -979,8 +999,28 @@
                             <svg class="node-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                         </div>
                         <div class="node-info">
-                            <span class="node-name">Pydantic Guard</span>
-                            <span class="node-meta">Schema Validation</span>
+                            <span class="node-name">Compliance Report</span>
+                            <span class="node-meta">Pydantic Model</span>
+                        </div>
+                    </div>
+
+                    <div class="node" id="node-sds" onclick="inspectNode('sds')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">SDS Author Agent</span>
+                            <span class="node-meta">16-Section Generator</span>
+                        </div>
+                    </div>
+
+                    <div class="node" id="node-reflect" onclick="inspectNode('reflect')">
+                        <div class="node-icon-wrapper">
+                            <svg class="node-icon" viewBox="0 0 24 24"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        </div>
+                        <div class="node-info">
+                            <span class="node-name">Reflection Agent</span>
+                            <span class="node-meta">QA Self-Correction</span>
                         </div>
                     </div>
 
@@ -997,10 +1037,10 @@
                             Step Inspector
                         </div>
                         <div class="inspector-desc" id="ins-desc">
-                            Select a node in the diagram above or click "Simulate Audit" to inspect the variables, queries, and constraints loaded inside each step of the pipeline.
+                            Select a node in the diagram above or click "Simulate Pipeline" to inspect the data schemas, agent states, and execution trace for each pipeline stage.
                         </div>
                         <a href="#" class="inspector-source-link" id="ins-link" target="_blank">
-                            <svg class="node-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                            <svg class="node-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline></svg>
                             View Source Code
                         </a>
                         
@@ -1022,45 +1062,40 @@
 
     </main>
 
-    <!-- Overlay & Gradio Preview -->
+    <!-- Overlay & Output Preview -->
     <div class="overlay" id="overlay" onclick="closePreview()"></div>
     <div class="output-preview-card" id="preview-card">
         <div class="preview-header">
             <h3 style="font-weight: 700; display:flex; align-items:center; gap:0.5rem;">
                 <svg class="node-icon" viewBox="0 0 24 24" style="color:var(--primary);"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-                Gradio Rendered Output
+                ChemShield AI Pipeline Output
             </h3>
             <button class="preview-close" onclick="closePreview()">&times;</button>
         </div>
         
-        <div class="gradio-badge" id="gr-badge">✅ APPROVED</div>
+        <div class="card-badge" id="gr-badge">APPROVED</div>
         <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;" id="gr-speed">
-            ⏱️ Audit completed in 3.12s using llama3.2:1b
+            Audit completed using Google Gemini 2.0 Flash / Multi-Agent Pipeline
         </div>
         
         <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 1.2rem; border-left: 3px solid var(--primary);" id="gr-summary">
             All chemical concentrations and hardware parameters are compliant with safety rules.
         </div>
 
-        <div class="gradio-grid">
-            <div class="gradio-grid-col">
-                <h5>🧪 Chemical Compliance</h5>
-                <div id="gr-chem-cards">
-                    <!-- Injected cards -->
-                </div>
+        <div class="output-grid">
+            <div class="output-grid-col">
+                <h5>Chemical Compliance Flags</h5>
+                <div id="gr-chem-cards"></div>
             </div>
-            <div class="gradio-grid-col">
-                <h5>🔩 Hardware Safety</h5>
-                <div id="gr-hw-cards">
-                    <!-- Injected cards -->
-                </div>
+            <div class="output-grid-col">
+                <h5>Hardware Thermal Safety</h5>
+                <div id="gr-hw-cards"></div>
             </div>
         </div>
     </div>
 
     <!-- Script Logic -->
     <script>
-        // Database Constants
         const HARDWARE_LIMITS = {
             "soda-lime glass": 100,
             "borosilicate glass": 500,
@@ -1080,122 +1115,124 @@
         };
 
         const CHROMADB_DOCS = {
-            "benzene": "OSHA Regulation 29 CFR 1910.1028: Benzene is a dangerous occupational carcinogen. The permissible exposure limit is 1 ppm TWA for inhalation. In open-vessel formulations, the liquid concentration is strictly limited to 0.1% by volume due to vapor generation risk. Source: OSHA 29 CFR 1910.1028.",
-            "acetone": "OSHA Table Z-1 29 CFR 1910.1000: Acetone Permissible Exposure Limit is 1000 ppm TWA. It is classified as a highly volatile flammable liquid. Check ventilation requirements. Source: OSHA Table Z-1.",
+            "benzene": "OSHA Regulation 29 CFR 1910.1028: Benzene is a dangerous occupational carcinogen. The permissible exposure limit is 1 ppm TWA for inhalation. In open-vessel formulations, liquid concentration is limited to 0.1% by volume due to vapor generation risk. Source: OSHA 29 CFR 1910.1028.",
+            "acetone": "OSHA Table Z-1 29 CFR 1910.1000: Acetone Permissible Exposure Limit is 1000 ppm TWA. Classified as a highly volatile flammable liquid. Check ventilation requirements. Source: OSHA Table Z-1.",
             "toluene": "OSHA Table Z-2 29 CFR 1910.1000: Toluene exposure limit is 200 ppm TWA. Long-term exposure affects central nervous system. Prevent open skin exposure. Source: OSHA Table Z-2.",
-            "methanol": "OSHA Table Z-1 29 CFR 1910.1000: Methanol exposure limit is 200 ppm TWA. Extremely toxic via ingestion or absorption. Skin contacts must be prevented. Source: OSHA Table Z-1.",
-            "isopropanol": "OSHA Table Z-1 29 CFR 1910.1000: Isopropyl alcohol exposure limit is 400 ppm TWA. It is a highly flammable organic solvent. Source: OSHA Table Z-1.",
-            "ipa": "OSHA Table Z-1 29 CFR 1910.1000: Isopropyl alcohol exposure limit is 400 ppm TWA. It is a highly flammable organic solvent. Source: OSHA Table Z-1.",
-            "ethanol": "OSHA Table Z-1 29 CFR 1910.1000: Ethanol exposure limit is 1000 ppm TWA. Classified as a Class IB flammable liquid. Source: OSHA Table Z-1."
+            "isopropanol": "OSHA Table Z-1 29 CFR 1910.1000: Isopropyl alcohol exposure limit is 400 ppm TWA. Highly flammable organic solvent. Source: OSHA Table Z-1."
         };
 
-        // Presets data
         const PRESETS = {
             1: {
-                text: "Formula B: 94% Water, 6% Benzene. Heat the mixture to 120°C in a soda-lime glass beaker.",
+                text: "Formula A-1: 94% Water, 6% Benzene. Heat to 120°C in a soda-lime glass beaker.",
                 parsed: {
                     chemicals: [{ name: "Water", conc: "94%" }, { name: "Benzene", conc: "6%" }],
                     hardware: [{ name: "soda-lime glass", temp: 120 }]
-                }
+                },
+                intent: "audit_and_sds"
             },
             2: {
                 text: "Mix 70% Isopropanol and 30% Water. Store in a polypropylene container at 25°C.",
                 parsed: {
                     chemicals: [{ name: "Isopropanol", conc: "70%" }, { name: "Water", conc: "30%" }],
                     hardware: [{ name: "polypropylene container", temp: 25 }]
-                }
+                },
+                intent: "audit"
             },
             3: {
-                text: "Formulation: 500 ppm Toluene, 800 ppm Acetone. Heated to 90°C in a polypropylene container.",
+                text: "Formulation B: 500 ppm Toluene, 800 ppm Acetone. Heated to 90°C in a polypropylene container.",
                 parsed: {
                     chemicals: [{ name: "Toluene", conc: "500 ppm" }, { name: "Acetone", conc: "800 ppm" }],
                     hardware: [{ name: "polypropylene container", temp: 90 }]
-                }
+                },
+                intent: "audit"
             },
             4: {
-                text: "What PPE is required for Acetone and Toluene? Do I need a fume hood?",
+                text: "Formula E-1: 90% Water, 10% Ethanol. Heat to 45°C in borosilicate glass. Target Region: EU (REACH), Language: Spanish.",
                 parsed: {
-                    chemicals: [{ name: "Acetone", conc: "N/A" }, { name: "Toluene", conc: "N/A" }],
-                    hardware: []
+                    chemicals: [{ name: "Water", conc: "90%" }, { name: "Ethanol", conc: "10%" }],
+                    hardware: [{ name: "borosilicate glass", temp: 45 }]
                 },
-                isCopilot: true
+                intent: "audit_and_sds",
+                isSDS: true
             }
         };
 
-        // Node definitions mapping to inspector texts and paths
         const NODE_DETAILS = {
             "input": {
-                title: "User Text Input",
-                desc: "The formulation process begins when the user submits an unstructured free-text note. This note details chemical components, concentrations, equipment, and target processing temperatures.",
-                file: "app.py#L187-L192",
-                source: "https://github.com/example/blob/main/app.py#L187-L192"
+                title: "User Formulation Input",
+                desc: "Ingests raw text formulation notes, region, and language preferences.",
+                file: "src/api/server.py"
             },
             "extractor": {
-                title: "RapidFuzz Extractor",
-                desc: "The Orchestrator extracts chemicals using regex, then RapidFuzz silently auto-corrects typos (e.g. 'benzen' -> 'Benzene') with a similarity threshold of 70+, avoiding lookup failures.",
-                file: "validator.py",
-                source: "https://github.com/example/blob/main/validator.py"
+                title: "Supervisor Entity Extractor",
+                desc: "Parses chemicals, concentrations, hardware items, and temperatures into structured Pydantic models with fuzzy name correction.",
+                file: "src/agents/supervisor.py"
             },
             "cache": {
-                title: "SQLite WAL Cache",
-                desc: "A 4-tier persistent cache (WAL mode). If the exact prompt, semantic OSHA limit, LLM summary, or chat turn was previously recorded, it returns instantly without network requests.",
-                file: "cache.py",
-                source: "https://github.com/example/blob/main/cache.py"
+                title: "SQLite Two-Tier Cache",
+                desc: "SHA-256 semantic cache checking input_cache and pubchem_cache for sub-10ms cache hits.",
+                file: "src/infrastructure/cache.py"
+            },
+            "pubchem": {
+                title: "Intelligence Agent (PubChem REST API)",
+                desc: "Fetches official CAS numbers, GHS pictograms, signal words, and hazard statements directly from PubChem REST API.",
+                file: "src/infrastructure/pubchem_client.py"
             },
             "rag": {
-                title: "ChromaDB RAG Verification",
-                desc: "For each extracted chemical, a semantic search is performed against ChromaDB. The system fetches only the TOP-1 document (to avoid cross-chemical noise) and parses the limits (ppm and %) via regex.",
-                file: "rag.py#L8-L14",
-                source: "https://github.com/example/blob/main/rag.py#L8-L14"
+                title: "Chemical Compliance Agent (ChromaDB RAG)",
+                desc: "Queries persistent ChromaDB vector store for OSHA Permissible Exposure Limits (PELs); falls back to Tavily Web Search API if unindexed.",
+                file: "src/agents/chemical_agent.py"
             },
             "mcp": {
-                title: "FastMCP Server Hardware Check",
-                desc: "The client dispatches the vessel name and target temperature to an external FastMCP server subprocess using stdio transport. Safe maximum bounds are evaluated; falls back to local constants on connection error.",
-                file: "mcp_server.py#L7-L29",
-                source: "https://github.com/example/blob/main/mcp_server.py#L7-L29"
+                title: "Hardware Compliance Agent (FastMCP Protocol)",
+                desc: "Checks container thermal limits using fast-path dictionary lookup and FastMCP tool server invocation.",
+                file: "src/agents/hardware_agent.py"
             },
             "phys": {
-                title: "Physical Hazard Checker",
-                desc: "Compiles physical chemistry properties. Compares the operating temperature to the hardcoded boiling point values. Exceeding a boiling point triggers severe pressure warnings and safety overrides.",
-                file: "agent.py#L182-L197",
-                source: "https://github.com/example/blob/main/agent.py#L182-L197"
+                title: "Physical Hazard Audit",
+                desc: "Compares target operating temperature against chemical boiling points to detect secondary boiling/explosion risks.",
+                file: "src/agents/chemical_agent.py"
             },
             "solver": {
-                title: "Policy Solver Matrix",
-                desc: "A pure-Python decision block that evaluates compliance status (volume% or TWA limits), hardware compatibility limits, and boiling hazards. Determines the overall status: APPROVED, REJECTED, or PARTIAL.",
-                file: "agent.py#L254-L272",
-                source: "https://github.com/example/blob/main/agent.py#L254-L272"
+                title: "Safety Verdict Calculation Engine",
+                desc: "Evaluates combined flags to calculate overall safety verdict (APPROVED, REJECTED, PARTIAL).",
+                file: "src/agents/supervisor.py"
             },
             "llm": {
-                title: "Gemini with OpenRouter Fallback",
-                desc: "Calls Gemini primary to translate policy violations into a clean safety summary. If Gemini times out or throws a 503, the client gracefully catches it and fails over to OpenRouter models automatically.",
-                file: "llm_client.py",
-                source: "https://github.com/example/blob/main/llm_client.py"
+                title: "LLM Reasoning & Synthesis Engine",
+                desc: "Dispatches Gemini 2.0 Flash (or OpenRouter fallback) for summary synthesis and section authoring.",
+                file: "src/infrastructure/llm_client.py"
             },
             "pydantic": {
-                title: "Pydantic Schema Validation",
-                desc: "Aggregates compliance findings, flags, and the LLM safety summary into the strict type-enforced ComplianceReport Pydantic schema to guarantee type-safety and eliminate downstream parsing bugs.",
-                file: "models.py#L53-L70",
-                source: "https://github.com/example/blob/main/models.py#L53-L70"
+                title: "ComplianceReport Pydantic Model",
+                desc: "Validates and encapsulates structured chemical flags, hardware flags, safety verdict, and pipeline metrics.",
+                file: "src/core/models.py"
+            },
+            "sds": {
+                title: "SDS Authoring Agent",
+                desc: "Synthesizes formulation facts into a 16-section GHS Safety Data Sheet tailored to region (US, EU, JP, CA, GB) and language.",
+                file: "src/agents/sds_author_agent.py"
+            },
+            "reflect": {
+                title: "Reflection Agent (Quality Assurance)",
+                desc: "Audits generated SDS document for structural completeness, signal word consistency, and safety disclosures.",
+                file: "src/agents/reflection_agent.py"
             }
         };
 
-        // State variables
         let selectedPreset = 1;
         let isSimulating = false;
-        let currentStep = "";
         let simulationResults = null;
 
-        // Initialize formulation textarea
         document.getElementById("formulation-input").value = PRESETS[1].text;
 
-        // SVGs connections repositioning logic
         function drawConnectionLines() {
             const svg = document.getElementById("canvas-svg");
             
             const connections = [
                 { from: "node-input", to: "node-extractor", line: "line-input-extractor", pulse: "pulse-input-extractor" },
                 { from: "node-extractor", to: "node-cache", line: "line-extractor-cache", pulse: "pulse-extractor-cache" },
+                { from: "node-extractor", to: "node-pubchem", line: "line-extractor-pubchem", pulse: "pulse-extractor-pubchem" },
                 { from: "node-cache", to: "node-rag", line: "line-cache-rag", pulse: "pulse-cache-rag" },
                 { from: "node-extractor", to: "node-mcp", line: "line-extractor-mcp", pulse: "pulse-extractor-mcp" },
                 { from: "node-extractor", to: "node-phys", line: "line-extractor-phys", pulse: "pulse-extractor-phys" },
@@ -1204,7 +1241,8 @@
                 { from: "node-phys", to: "node-solver", line: "line-phys-solver", pulse: "pulse-phys-solver" },
                 { from: "node-solver", to: "node-llm", line: "line-solver-llm", pulse: "pulse-solver-llm" },
                 { from: "node-llm", to: "node-pydantic", line: "line-llm-pydantic", pulse: "pulse-llm-pydantic" },
-                { from: "node-rag", to: "node-llm", line: "line-rag-llm", pulse: "pulse-rag-llm" }
+                { from: "node-pydantic", to: "node-sds", line: "line-pydantic-sds", pulse: "pulse-pydantic-sds" },
+                { from: "node-sds", to: "node-reflect", line: "line-sds-reflect", pulse: "pulse-sds-reflect" }
             ];
 
             const canvasRect = svg.getBoundingClientRect();
@@ -1220,88 +1258,63 @@
                 const fromRect = elFrom.getBoundingClientRect();
                 const toRect = elTo.getBoundingClientRect();
 
-                // Calculate center connection coordinates relative to SVG canvas
                 const startX = (fromRect.left + fromRect.width) - canvasRect.left;
                 const startY = (fromRect.top + fromRect.height / 2) - canvasRect.top;
                 const endX = toRect.left - canvasRect.left;
                 const endY = (toRect.top + toRect.height / 2) - canvasRect.top;
 
                 let pathD = "";
-                
-                // If horizontal columns (left to right)
                 if (startX < endX) {
                     const midX = startX + (endX - startX) / 2;
                     pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
                 } else {
-                    // Vertical flow
                     const midY = startY + (endY - startY) / 2;
                     pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
                 }
 
                 line.setAttribute("d", pathD);
-                pulse.setAttribute("d", pathD);
+                if (pulse) pulse.setAttribute("d", pathD);
             });
         }
 
-        // Draw connections after DOM loaded and resize
         window.addEventListener("load", () => {
             drawConnectionLines();
-            // Trigger first node details display on startup
             inspectNode('input');
         });
         window.addEventListener("resize", drawConnectionLines);
 
-        // Load Preset Function
         function loadPreset(id) {
             if (isSimulating) return;
             selectedPreset = id;
             
-            // UI Button Highlight
             document.querySelectorAll(".preset-btn").forEach(btn => btn.classList.remove("selected"));
             document.getElementById(`preset-${id}`).classList.add("selected");
-            
-            // Load text
             document.getElementById("formulation-input").value = PRESETS[id].text;
             resetSimulator();
         }
 
-        // Reset Simulator
         function resetSimulator() {
             isSimulating = false;
-            currentStep = "";
             simulationResults = null;
 
-            // Remove node highlights
-            document.querySelectorAll(".node").forEach(node => {
-                node.className = "node";
-            });
-
-            // Remove pulse animations
+            document.querySelectorAll(".node").forEach(node => node.className = "node");
             document.querySelectorAll(".connection-pulse").forEach(pulse => {
                 pulse.classList.remove("pulse-active");
                 pulse.style.opacity = 0;
             });
 
-            // Status Badge reset
             const statusDot = document.getElementById("status-dot");
             statusDot.className = "status-dot idle";
             document.getElementById("status-text").innerText = "IDLE";
             
-            // Clear inspector display
             inspectNode('input');
             document.getElementById("run-btn").disabled = false;
         }
 
-        // Sim Execution engine
         function parseFormulation(text) {
-            // JS Simulation of Regex Engine in agent.py
             const lower = text.toLowerCase();
-            const extracted = {
-                chemicals: [],
-                hardware: []
-            };
+            const extracted = { chemicals: [], hardware: [] };
 
-            // Pattern A: <number>% <Chemical>
             const patternA = /(\d+(?:\.\d+)?)\s*(%)\s+([A-Za-z\-]+)/g;
             let match;
             const seenChems = new Set();
@@ -1315,7 +1328,6 @@
                 }
             }
 
-            // Pattern B: <number> ppm <Chemical>
             const patternB = /(\d+(?:\.\d+)?)\s*(ppm)\s+([A-Za-z\-]+)/gi;
             while ((match = patternB.exec(text)) !== null) {
                 const name = match[3];
@@ -1326,28 +1338,12 @@
                 }
             }
 
-            // Pattern C: <Chemical>: <number>%
-            const patternC = /([A-Za-z\-]+)\s*:\s*(\d+(?:\.\d+)?)\s*(%)/gi;
-            while ((match = patternC.exec(text)) !== null) {
-                const name = match[1];
-                const conc = match[2] + match[3];
-                if (!seenChems.has(name.toLowerCase())) {
-                    seenChems.add(name.toLowerCase());
-                    extracted.chemicals.push({ name, conc });
-                }
-            }
-
-            // Temperature Match
             const tempMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:°[Cc]|[Cc](?!\w)|[Cc]elsius)/i);
             const targetTemp = tempMatch ? parseFloat(tempMatch[1]) : null;
 
-            // Hardware match
             Object.keys(HARDWARE_LIMITS).forEach(hw => {
                 if (lower.includes(hw)) {
-                    extracted.hardware.push({
-                        name: hw,
-                        temp: targetTemp
-                    });
+                    extracted.hardware.push({ name: hw, temp: targetTemp });
                 }
             });
 
@@ -1359,7 +1355,6 @@
             let hardwareFlags = [];
             let boilingHazards = [];
 
-            // Check Chemicals
             extracted.chemicals.forEach(chem => {
                 const nameKey = chem.name.toLowerCase();
                 if (nameKey === "water") {
@@ -1385,7 +1380,6 @@
                     return;
                 }
 
-                // Parse RAG Limits
                 let limitPpm = null;
                 let limitPct = null;
 
@@ -1407,7 +1401,7 @@
                     isCompliant = concVal <= limitPct;
                 } else if (isPct && limitPpm !== null) {
                     regulatoryLimit = `${limitPpm} ppm TWA (airborne, not applicable to liquid volume %)`;
-                    isCompliant = true; // safe liquid carrier
+                    isCompliant = true;
                 } else if (isPpm && limitPpm !== null) {
                     regulatoryLimit = `${limitPpm} ppm TWA`;
                     isCompliant = concVal <= limitPpm;
@@ -1422,7 +1416,6 @@
                 });
             });
 
-            // Check Hardware (MCP simulation)
             extracted.hardware.forEach(hw => {
                 const maxTemp = HARDWARE_LIMITS[hw.name];
                 const isSafe = hw.temp !== null ? hw.temp <= maxTemp : true;
@@ -1435,36 +1428,28 @@
                 });
             });
 
-            // Boiling Hazards
             if (extracted.hardware.length > 0 && extracted.hardware[0].temp !== null) {
                 const targetTemp = extracted.hardware[0].temp;
                 extracted.chemicals.forEach(chem => {
                     const bp = BOILING_POINTS[chem.name.toLowerCase()];
                     if (bp && targetTemp > bp) {
-                        boilingHazards.push(`${chem.name} (bp ${bp}°C) is heated to ${targetTemp}°C — severe vapor pressure / explosion risk`);
+                        boilingHazards.push(`${chem.name} (bp ${bp}°C) is heated to ${targetTemp}°C causing vapor pressure risk.`);
                     }
                 });
             }
 
-            // Global Status
-            const isCopilot = PRESETS[selectedPreset].isCopilot;
             const anyChemFail = chemicalFlags.some(f => !f.is_compliant);
             const anyHwFail = hardwareFlags.some(f => !f.is_safe);
 
             let status = "APPROVED";
-            if (isCopilot) {
-                status = "COPILOT";
-            } else if (anyChemFail || anyHwFail) {
+            if (anyChemFail || anyHwFail) {
                 status = "REJECTED";
             } else if (boilingHazards.length > 0) {
                 status = "PARTIAL";
             }
 
-            // LLM Summary Generation Simulation
             let summary = "All chemical concentrations and hardware parameters are compliant with safety rules.";
-            if (status === "COPILOT") {
-                summary = "Both Acetone and Toluene require chemical splash goggles and nitrile gloves. Use in a fume hood; both are highly flammable, so strictly keep away from ignition sources.";
-            } else if (status === "REJECTED") {
+            if (status === "REJECTED") {
                 let violations = [];
                 chemicalFlags.forEach(f => {
                     if (!f.is_compliant) violations.push(`${f.chemical_name} concentration of ${f.detected_concentration} exceeds OSHA limit of ${f.regulatory_limit}`);
@@ -1474,7 +1459,7 @@
                 });
                 summary = "Formulation rejected: " + violations.join(", and ") + ".";
             } else if (status === "PARTIAL") {
-                summary = `Formulation approved with warnings: operating temperature exceeds boiling point of ${boilingHazards.map(h => h.split(' ')[0]).join(', ')}, creating secondary pressure hazards.`;
+                summary = `Formulation approved with warnings: operating temperature exceeds boiling point, creating secondary pressure hazards.`;
             }
 
             return {
@@ -1486,111 +1471,86 @@
             };
         }
 
-        // Run Simulation loop
         async function startSimulation() {
             if (isSimulating) return;
             isSimulating = true;
             document.getElementById("run-btn").disabled = true;
 
             const textInput = document.getElementById("formulation-input").value;
-            
-            // Build actual state simulation results
             const extracted = parseFormulation(textInput);
             const evaluation = calculateCompliance(extracted);
             
             simulationResults = {
                 input: textInput,
                 extractor: extracted,
+                cache: { status: "check", result: "cache miss" },
+                pubchem: { cas: "71-43-2", GHS: ["GHS02", "GHS08"], signal: "DANGER" },
                 rag: evaluation.chemical_flags,
                 mcp: evaluation.hardware_flags,
                 phys: evaluation.boiling_hazards,
-                solver: {
-                    chemical_flags: evaluation.chemical_flags,
-                    hardware_flags: evaluation.hardware_flags,
-                    boiling_hazards: evaluation.boiling_hazards,
-                    overall_approval_status: evaluation.overall_approval_status
-                },
+                solver: evaluation,
                 llm: evaluation.summary,
-                pydantic: evaluation
+                pydantic: evaluation,
+                sds: { sections: 16, title: "GHS Safety Data Sheet" },
+                reflect: { passed: true, notes: [] }
             };
 
-            const isCopilot = PRESETS[selectedPreset].isCopilot;
-            const steps = isCopilot 
-                ? ["input", "extractor", "cache", "rag", "llm"] 
-                : ["input", "extractor", "cache", "rag", "mcp", "phys", "solver", "llm", "pydantic"];
+            const steps = ["input", "extractor", "cache", "pubchem", "rag", "mcp", "phys", "solver", "llm", "pydantic", "sds", "reflect"];
             
-            // Reset node highlights
             document.querySelectorAll(".node").forEach(n => n.className = "node");
             document.querySelectorAll(".connection-pulse").forEach(p => p.classList.remove("pulse-active"));
 
-            // Change overall pipeline status to running
             const statusDot = document.getElementById("status-dot");
             statusDot.className = "status-dot running";
-            document.getElementById("status-text").innerText = "RUNNING AUDIT...";
+            document.getElementById("status-text").innerText = "RUNNING AGENTIC PIPELINE...";
 
-            // Cycle through steps
             for (let i = 0; i < steps.length; i++) {
                 const step = steps[i];
-                currentStep = step;
-                
-                // Highlight Node
                 const nodeEl = document.getElementById(`node-${step}`);
-                nodeEl.className = "node active-now";
+                if (nodeEl) nodeEl.className = "node active-now";
                 inspectNode(step);
 
-                // Activate connection pulses outgoing
-                if (step === "input") {
-                    document.getElementById("pulse-input-extractor").classList.add("pulse-active");
-                } else if (step === "extractor") {
-                    document.getElementById("pulse-extractor-cache").classList.add("pulse-active");
-                    if (!isCopilot) {
-                        document.getElementById("pulse-extractor-mcp").classList.add("pulse-active");
-                        document.getElementById("pulse-extractor-phys").classList.add("pulse-active");
-                    }
-                } else if (step === "cache") {
-                    document.getElementById("pulse-cache-rag").classList.add("pulse-active");
-                } else if (step === "rag") {
-                    if (isCopilot) {
-                        document.getElementById("pulse-rag-llm").classList.add("pulse-active");
-                    } else {
-                        document.getElementById("pulse-rag-solver").classList.add("pulse-active");
-                    }
-                } else if (step === "mcp") {
-                    document.getElementById("pulse-mcp-solver").classList.add("pulse-active");
-                } else if (step === "phys") {
-                    document.getElementById("pulse-phys-solver").classList.add("pulse-active");
-                } else if (step === "solver") {
-                    document.getElementById("pulse-solver-llm").classList.add("pulse-active");
-                } else if (step === "llm") {
-                    document.getElementById("pulse-llm-pydantic").classList.add("pulse-active");
+                const pulseMap = {
+                    "input": "pulse-input-extractor",
+                    "extractor": "pulse-extractor-cache",
+                    "cache": "pulse-cache-rag",
+                    "rag": "pulse-rag-solver",
+                    "mcp": "pulse-mcp-solver",
+                    "phys": "pulse-phys-solver",
+                    "solver": "pulse-solver-llm",
+                    "llm": "pulse-llm-pydantic",
+                    "pydantic": "pulse-pydantic-sds",
+                    "sds": "pulse-sds-reflect"
+                };
+
+                if (pulseMap[step]) {
+                    const pEl = document.getElementById(pulseMap[step]);
+                    if (pEl) pEl.classList.add("pulse-active");
                 }
 
-                // Wait for step visibility
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => setTimeout(resolve, 800));
                 
-                // Mark step completed
-                if (step === "rag" || step === "mcp") {
-                    const flags = simulationResults[step];
-                    const failed = flags.some(f => f.is_compliant === false || f.is_safe === false);
-                    nodeEl.className = failed ? "node failed-state" : "node completed";
-                } else {
-                    nodeEl.className = "node completed";
+                if (nodeEl) {
+                    if (step === "rag" || step === "mcp") {
+                        const flags = simulationResults[step];
+                        const failed = flags && flags.some(f => f.is_compliant === false || f.is_safe === false);
+                        nodeEl.className = failed ? "node failed-state" : "node completed";
+                    } else {
+                        nodeEl.className = "node completed";
+                    }
                 }
             }
 
-            // Set final status
             const finalStatus = evaluation.overall_approval_status;
             statusDot.className = `status-dot ${finalStatus === 'APPROVED' ? 'passed' : finalStatus === 'REJECTED' ? 'failed' : 'partial'}`;
             document.getElementById("status-text").innerText = finalStatus;
 
-            // Trigger preview UI modal render
             showOutputPreview(evaluation);
             
             isSimulating = false;
             document.getElementById("run-btn").disabled = false;
         }
 
-        // View step information inside data inspector panel
         function inspectNode(nodeKey) {
             if (!NODE_DETAILS[nodeKey]) return;
 
@@ -1604,85 +1564,54 @@
             const linkEl = document.getElementById("ins-link");
             linkEl.innerText = `View code in ${detail.file}`;
             
-            // Format Inspector Data Output
             let displayData = "No simulation active. Data empty.";
-            if (simulationResults) {
-                const stepData = simulationResults[nodeKey];
-                displayData = JSON.stringify(stepData, null, 4);
+            if (simulationResults && simulationResults[nodeKey]) {
+                displayData = JSON.stringify(simulationResults[nodeKey], null, 4);
             } else {
-                // Pre-sim mock templates
-                if (nodeKey === "input") {
-                    displayData = document.getElementById("formulation-input").value;
-                } else if (nodeKey === "extractor") {
-                    displayData = "Output Schema Expected:\n{\n    \"chemicals\": [ {\"name\": string, \"concentration\": string} ],\n    \"hardware\": [ {\"name\": string, \"target_temperature_celsius\": float} ]\n}";
-                } else if (nodeKey === "cache") {
-                    displayData = "Cache Status:\nChecking SQLite WAL cache.db...\n{ 'status': 'miss', 'latency': '0.001s' }";
-                } else if (nodeKey === "rag") {
-                    displayData = "Queries ChromaDB collection 'regulatory_data' semantic matching chemical keys. Parses Permissible Exposure Limits (PEL).";
-                } else if (nodeKey === "mcp") {
-                    displayData = "FastMCP Command Execution:\npython mcp_server.py stdio\nExposes tool: check_hardware_compatibility()";
-                } else if (nodeKey === "phys") {
-                    displayData = "Fetches chemical boiling point physical constants from local Python lookup table to detect thermal risks.";
-                } else if (nodeKey === "solver") {
-                    displayData = "Solves compliance matrix logic deterministically in microseconds.";
-                } else if (nodeKey === "llm") {
-                    displayData = "LLM API query (Gemini -> OpenRouter):\nSystem: Write ONE safety finding sentence...\nInput: [Violations List]";
-                } else if (nodeKey === "pydantic") {
-                    displayData = "Applies strict validation schema models.ComplianceReport.";
-                }
+                displayData = `[${detail.title}]\nReady to execute step.\nCode location: ${detail.file}`;
             }
 
             document.getElementById("ins-data").innerText = displayData;
         }
 
-        // Output Preview Modal Render
         function showOutputPreview(report) {
             const overlay = document.getElementById("overlay");
             const card = document.getElementById("preview-card");
             
-            // Header Color-Coding
             const status = report.overall_approval_status;
             const badge = document.getElementById("gr-badge");
             
-            if (status === "COPILOT") {
-                badge.innerText = "💬 COPILOT CHAT";
-                badge.style.color = "#06b6d4";
+            badge.innerText = status;
+            if (status === "APPROVED") {
+                badge.style.color = "var(--success)";
+            } else if (status === "REJECTED") {
+                badge.style.color = "var(--danger)";
             } else {
-                badge.innerText = (status === "APPROVED" ? "✅ " : status === "REJECTED" ? "❌ " : "⚠️ ") + status;
-                if (status === "APPROVED") {
-                    badge.style.color = "var(--success)";
-                } else if (status === "REJECTED") {
-                    badge.style.color = "var(--danger)";
-                } else {
-                    badge.style.color = "var(--warning)";
-                }
+                badge.style.color = "var(--warning)";
             }
 
-            // Summary
             document.getElementById("gr-summary").innerText = report.summary;
-            document.getElementById("gr-summary").style.borderLeftColor = status === "COPILOT" ? "#06b6d4" : (status === "APPROVED" ? "var(--success)" : status === "REJECTED" ? "var(--danger)" : "var(--warning)");
+            document.getElementById("gr-summary").style.borderLeftColor = status === "APPROVED" ? "var(--success)" : status === "REJECTED" ? "var(--danger)" : "var(--warning)";
 
-            // Chemical cards render
             const chemContainer = document.getElementById("gr-chem-cards");
             chemContainer.innerHTML = "";
             if (report.chemical_flags.length > 0) {
                 report.chemical_flags.forEach(flag => {
-                    const cardClass = flag.is_compliant ? "gradio-card pass" : "gradio-card fail";
+                    const cardClass = flag.is_compliant ? "output-card pass" : "output-card fail";
                     const complianceLabel = flag.is_compliant ? "COMPLIANT" : "NON-COMPLIANT";
                     const labelColor = flag.is_compliant ? "var(--success)" : "var(--danger)";
-                    const icon = flag.is_compliant ? "✅" : "❌";
 
                     chemContainer.innerHTML += `
                         <div class="${cardClass}">
-                            <div class="gradio-card-title">
-                                <span>${icon} ${flag.chemical_name}</span>
+                            <div class="output-card-title">
+                                <span>${flag.chemical_name}</span>
                                 <span style="font-size:0.7rem; color:${labelColor}; font-weight:700;">${complianceLabel}</span>
                             </div>
-                            <div class="gradio-card-label">Detected Concentration</div>
-                            <div class="gradio-card-value">${flag.detected_concentration}</div>
-                            <div class="gradio-card-label">Regulatory Limit</div>
-                            <div class="gradio-card-value">${flag.regulatory_limit}</div>
-                            <div class="gradio-citation">📖 Source: ${flag.source_citation ? flag.source_citation : "No citation found."}</div>
+                            <div class="output-card-label">Detected Concentration</div>
+                            <div class="output-card-value">${flag.detected_concentration}</div>
+                            <div class="output-card-label">Regulatory Limit</div>
+                            <div class="output-card-value">${flag.regulatory_limit}</div>
+                            <div class="output-citation">Source: ${flag.source_citation ? flag.source_citation : "No citation found."}</div>
                         </div>
                     `;
                 });
@@ -1690,26 +1619,24 @@
                 chemContainer.innerHTML = "<p style='color:var(--text-muted); font-size:0.8rem;'>No chemicals detected.</p>";
             }
 
-            // Hardware cards render
             const hwContainer = document.getElementById("gr-hw-cards");
             hwContainer.innerHTML = "";
             if (report.hardware_flags.length > 0) {
                 report.hardware_flags.forEach(flag => {
-                    const cardClass = flag.is_safe ? "gradio-card pass" : "gradio-card fail";
+                    const cardClass = flag.is_safe ? "output-card pass" : "output-card fail";
                     const safetyLabel = flag.is_safe ? "SAFE" : "UNSAFE";
                     const labelColor = flag.is_safe ? "var(--success)" : "var(--danger)";
-                    const icon = flag.is_safe ? "✅" : "❌";
 
                     hwContainer.innerHTML += `
                         <div class="${cardClass}">
-                            <div class="gradio-card-title">
-                                <span>${icon} ${flag.equipment_name}</span>
+                            <div class="output-card-title">
+                                <span>${flag.equipment_name}</span>
                                 <span style="font-size:0.7rem; color:${labelColor}; font-weight:700;">${safetyLabel}</span>
                             </div>
-                            <div class="gradio-card-label">Operating Temperature</div>
-                            <div class="gradio-card-value">${flag.target_temperature_celsius}°C</div>
-                            <div class="gradio-card-label">Vessel Max Safe Boundary</div>
-                            <div class="gradio-card-value">${flag.max_safe_temperature_celsius}°C</div>
+                            <div class="output-card-label">Operating Temperature</div>
+                            <div class="output-card-value">${flag.target_temperature_celsius}°C</div>
+                            <div class="output-card-label">Vessel Max Safe Boundary</div>
+                            <div class="output-card-value">${flag.max_safe_temperature_celsius}°C</div>
                         </div>
                     `;
                 });
@@ -1717,7 +1644,6 @@
                 hwContainer.innerHTML = "<p style='color:var(--text-muted); font-size:0.8rem;'>No hardware equipment detected.</p>";
             }
 
-            // Display modal
             overlay.classList.add("show");
             card.classList.add("show");
         }

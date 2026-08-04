@@ -1,14 +1,14 @@
 # Software Requirements Specification (SRS)
 
-**Project Name:** ChemShield AI — Chemical Safety & SDS Platform  
-**Specification Version:** 2.0.0 (Production Specifications)  
+**Project Name:** ChemShield AI - Chemical Safety & Multi-Region GHS SDS Platform  
+**Specification Version:** 2.5.0 (Production Specifications)  
 **Document Status:** Approved & Implemented  
 
 ---
 
 ## 1. Executive Summary & Purpose
 
-ChemShield AI is an automated multi-agent chemical safety compliance auditor and GHS Safety Data Sheet (SDS) authoring system. The system ingests raw laboratory formulation notes, extracts chemical ingredients and laboratory hardware configurations, audits them against regulatory safety standards, and generates 16-section OSHA HazCom 2012 / GHS Rev.9 compliant Safety Data Sheets.
+ChemShield AI is an enterprise multi-agent chemical safety compliance auditor and GHS Safety Data Sheet (SDS) authoring platform. The system ingests raw laboratory formulation notes, extracts chemical ingredients and laboratory hardware configurations, audits them against regulatory safety standards, and generates 16-section GHS Safety Data Sheets customizable by international regulatory jurisdiction and language.
 
 ---
 
@@ -31,15 +31,16 @@ ChemShield AI is an automated multi-agent chemical safety compliance auditor and
 
 ### FR-3: Intent-Driven Pipeline Execution
 - **FR-3.1**: The system shall support `intent="audit"` to execute entity extraction, multi-agent compliance auditing, safety verdict calculation, and LLM summary generation in ~1 second.
-- **FR-3.2**: The system shall support `intent="sds"` to generate a complete 16-section GHS SDS document on demand.
+- **FR-3.2**: The system shall support `intent="sds"` and `intent="audit_and_sds"` to generate a complete 16-section GHS SDS document on demand.
 - **FR-3.3**: When `intent="sds"` is requested for an audited formulation, the system shall reuse the cached audit state, skipping redundant entity extraction and network calls.
 
-### FR-4: GHS SDS Authoring & Automated Quality Assurance
-- **FR-4.1**: The `SDSAuthorAgent` shall synthesize formulation data, PubChem records, and compliance flags into a 16-section GHS SDS document.
-- **FR-4.2**: The `ReflectionAgent` shall audit generated SDS documents for structural completeness, signal word consistency, and hazard statement alignment, triggering automated self-correction loops if defects are detected (max 2 iterations).
+### FR-4: Multi-Region & Multi-Language SDS Authoring
+- **FR-4.1**: The `SDSAuthorAgent` shall synthesize formulation data, PubChem records, and compliance flags into a 16-section GHS SDS document tailored to the selected regulatory region (`US OSHA`, `EU REACH/CLP`, `JP JIS`, `CA WHMIS`, `UK GB-CLP`).
+- **FR-4.2**: The system shall translate and localize all 16 section titles, hazard disclosures, PPE instructions, and regulatory statements into the selected output language (`English`, `Spanish`, `French`, `German`, `Japanese`).
+- **FR-4.3**: The `ReflectionAgent` shall audit generated SDS documents for structural completeness, signal word consistency, and hazard statement alignment, triggering automated self-correction loops if defects are detected (max 2 iterations).
 
-### FR-5: User Interface & Telemetry
-- **FR-5.1**: The web interface shall feature a two-column workspace layout with a right-hand sticky execution telemetry sidebar.
+### FR-5: User Interface & Real-Time Telemetry
+- **FR-5.1**: The web interface shall feature a responsive two-column workspace layout with a right-hand sticky execution telemetry sidebar.
 - **FR-5.2**: The sidebar shall display a pulsing live execution status dot (`● LIVE`) and a 4-stage progress tracker (`Entity Extraction`, `Multi-Agent Audit`, `Safety Verdict`, `GHS SDS Authoring`).
 - **FR-5.3**: The sidebar shall stream Server-Sent Events (SSE) log messages in real time.
 - **FR-5.4**: The system shall display an automated SDS Worker Modal Preview whenever an SDS is generated.
@@ -60,7 +61,7 @@ ChemShield AI is an automated multi-agent chemical safety compliance auditor and
 ### NFR-2: Reliability & Concurrency
 - SQLite database operations shall use Write-Ahead Logging (`WAL` mode) and connection pooling (`threading.local()`) to guarantee thread safety under concurrent requests.
 
-### NFR-3: Security & Data Hygiene
+### NFR-3: Security & Code Quality
 - API keys shall be stored strictly in environment variables (`.env`) and never committed to source control.
 - Input validation shall sanitize user prompt strings before LLM execution.
 - Codebase, comments, and documentation shall contain zero emojis.
@@ -69,10 +70,10 @@ ChemShield AI is an automated multi-agent chemical safety compliance auditor and
 
 ## 4. System Interfaces & APIs
 
-| Endpoint | Method | Input Payload | Output Response | Description |
+| Endpoint | Method | Input Payload / Query Params | Output Response | Description |
 |---|---|---|---|---|
 | `/` | GET | None | HTML | Serves ChemShield AI web application |
-| `/api/v1/stream` | GET | `input_text`, `intent` | SSE Stream | Real-time log stream and progress events |
-| `/api/v1/audit` | POST | `{user_input, intent}` | JSON | Blocking compliance audit response |
+| `/api/v1/stream` | GET | `input_text`, `intent`, `region`, `language` | SSE Stream | Real-time log stream and progress events |
+| `/api/v1/audit` | POST | `{user_input, intent, region, language}` | JSON | Blocking compliance audit response |
 | `/api/v1/chat` | POST | `{message, history, formulation_context}` | JSON | Safety copilot chatbot endpoint |
 | `/api/v1/examples` | GET | None | JSON | Scenario presets |
