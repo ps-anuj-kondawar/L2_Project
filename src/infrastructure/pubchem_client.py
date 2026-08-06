@@ -1,5 +1,6 @@
 import asyncio
 import re
+import urllib.parse
 import httpx
 from typing import Any
 from src.core.logger import logger
@@ -30,7 +31,8 @@ async def _fetch_json(url: str, timeout: float = 10.0) -> dict | None:
 
 
 async def get_pubchem_cid(chemical_name: str) -> int | None:
-    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{chemical_name}/cids/JSON"
+    encoded_name = urllib.parse.quote(chemical_name.strip())
+    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{encoded_name}/cids/JSON"
     data = await _fetch_json(url)
     if data and "IdentifierList" in data and "CID" in data["IdentifierList"]:
         return data["IdentifierList"]["CID"][0]

@@ -87,7 +87,8 @@ async def _gemini_chat(messages: list[dict], json_mode: bool) -> str:
             contents=contents,
             config=config,
         )
-    result = response.text.strip().replace("\u202f", " ").replace("\xa0", " ").replace("\u2011", "-")
+    raw_text = response.text if (response and hasattr(response, "text") and response.text) else ""
+    result = raw_text.strip().replace("\u202f", " ").replace("\xa0", " ").replace("\u2011", "-")
     logger.info(f"[Gemini Response]: {result}")
     return result
 
