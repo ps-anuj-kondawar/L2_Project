@@ -1,4 +1,11 @@
+from enum import Enum
 from pydantic import BaseModel, Field
+
+class Intent(str, Enum):
+    AUDIT = "audit"
+    SDS = "sds"
+    FULL = "full"
+    AUDIT_AND_SDS = "audit_and_sds"
 
 class ExtractedChemical(BaseModel):
     name: str = Field(description="Name of the chemical")
@@ -14,7 +21,11 @@ class ChemicalFlag(BaseModel):
         description="The name of the chemical as found in the user input."
     )
     is_compliant: bool = Field(
-        description="True if the detected concentration is within regulatory limits, False otherwise."
+        description="True if detected concentration is within regulatory limits, False otherwise."
+    )
+    status: str = Field(
+        default="COMPLIANT",
+        description="'COMPLIANT', 'NON_COMPLIANT', 'UNKNOWN', or 'REVIEW_REQUIRED'"
     )
     detected_concentration: str | None = Field(
         default=None,
@@ -47,6 +58,10 @@ class HardwareFlag(BaseModel):
             "True if target_temperature_celsius <= max_safe_temperature_celsius, False otherwise."
         )
     )
+    status: str = Field(
+        default="SAFE",
+        description="'SAFE', 'UNSAFE', 'UNKNOWN', or 'REVIEW_REQUIRED'"
+    )
 
 class PipelineMetrics(BaseModel):
     rag_context_relevancy: float = Field(
@@ -71,9 +86,10 @@ class ComplianceReport(BaseModel):
     )
     overall_approval_status: str = Field(
         description=(
-            "'APPROVED' if all checks pass and there are no systemic hazards. "
+            "'APPROVED' if all checks pass. "
             "'REJECTED' if any check fails or there is a severe hazard. "
-            "'PARTIAL' if mixed or if there are secondary environmental risks (e.g., boiling point exceeded)."
+            "'PARTIAL' if mixed or secondary risks. "
+            "'REVIEW_REQUIRED' if extraction/MCP failure or unknown chemical occurs."
         )
     )
     summary: str = Field(

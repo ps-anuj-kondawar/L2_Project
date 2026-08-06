@@ -33,12 +33,11 @@ This document outlines the detailed execution workflow, dataflow sequence, and s
                                          |
                                          v
 +-----------------------------------------------------------------------------------+
-| 5. STEP 2: PARALLEL AGENT DISPATCH (asyncio.gather)                               |
+| 5. STEP 2: MODEL-MEDIATED ReAct ACTION LOOP                                       |
 |                                                                                   |
-|  +-----------------------+   +-----------------------+   +---------------------+  |
-|  | Intelligence Agent    |   | Chemical Agent        |   | Hardware Agent      |  |
-|  | PubChem REST API      |   | ChromaDB RAG + Tavily |   | FastMCP Protocol    |  |
-|  +-----------------------+   +-----------------------+   +---------------------+  |
+|  Decide (Policy LLM) -> Act (Specialist Agent) -> Observe -> Repeat/Finish        |
+|  Specialist Agents: IntelligenceAgent, ChemicalComplianceAgent, HardwareAgent      |
+|  FastMCP Tool Discovery & Execution over stdio transport                          |
 +-----------------------------------------------------------------------------------+
                                          |
                                          v

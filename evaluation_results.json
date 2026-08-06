@@ -1,6 +1,0 @@
-{
-    "rag_context_relevancy": 1.0,
-    "agent_tool_call_success_rate": 1.0,
-    "llm_instruction_following": 1.0,
-    "total_latency": 4.916
-}

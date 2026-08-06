@@ -20,7 +20,7 @@ from src.utils.validator import (
     validate_physical_boundaries,
     fuzzy_match_hardware
 )
-from src.infrastructure.llm_client import chat as llm_chat
+from src.infrastructure.llm_client import chat as llm_chat, LAST_PROVIDER_USED
 from src.infrastructure.cache import (
     get_semantic_cache,
     set_semantic_cache,
@@ -41,26 +41,32 @@ async def _extract_entities(text: str) -> tuple[list[ExtractedChemical], list[Ex
         "Extract all chemicals, concentrations, containers, and temperatures from the text below.\n"
         f"Return ONLY valid JSON matching this schema: {json.dumps(schema)}\n\nText:\n{text}"
     )
-    try:
-        raw = await llm_chat(
-            messages=[
-                {"role": "system", "content": "You are a precise chemical entity extractor. Return JSON only."},
-                {"role": "user",   "content": prompt},
-            ],
-            json_mode=True,
-        )
-        data = json.loads(raw)
-        chems = [ExtractedChemical(name=c["name"], concentration=c.get("concentration")) for c in data.get("chemicals", [])]
-        hws = []
-        for h in data.get("hardware", []):
-            try:
-                temp_val = float(h.get("target_temperature_celsius") or 25.0)
-            except (ValueError, TypeError):
-                temp_val = 25.0
-            hws.append(ExtractedHardware(name=h["name"], target_temperature_celsius=temp_val))
-        return chems, hws
-    except Exception:
-        return [], []
+    # Bounded repair loop for JSON parsing
+    for attempt in range(2):
+        try:
+            raw = await llm_chat(
+                messages=[
+                    {"role": "system", "content": "You are a precise chemical entity extractor. Return JSON only."},
+                    {"role": "user",   "content": prompt if attempt == 0 else f"{prompt}\n\nPrevious attempt failed JSON parsing. Output strictly valid JSON."}
+                ],
+                json_mode=True,
+            )
+            data = json.loads(raw)
+            chems = [ExtractedChemical(name=c["name"], concentration=c.get("concentration")) for c in data.get("chemicals", []) if c.get("name")]
+            hws = []
+            for h in data.get("hardware", []):
+                if not h.get("name"):
+                    continue
+                try:
+                    temp_val = float(h.get("target_temperature_celsius") or 25.0)
+                except (ValueError, TypeError):
+                    temp_val = 25.0
+                hws.append(ExtractedHardware(name=h["name"], target_temperature_celsius=temp_val))
+            return chems, hws
+        except Exception as e:
+            logger.warning(f"[Supervisor] Entity extraction attempt {attempt + 1} failed ({type(e).__name__}): {e}")
+    
+    return [], []
 
 
 def _evaluate_summary_quality(summary: str) -> float:
@@ -82,12 +88,8 @@ async def run_supervisor(
 ) -> AgentRunResult:
     """
     Supervisor Agent Orchestrator.
-    Manages state, dispatches parallel compliance and intelligence agents,
-    handles reflection loops, and packages final AgentRunResult.
-
-    intent:
-        'audit' — runs Compliance Audit only (Extract, Chemical, Hardware, Intelligence, Verdict, Summary). Skips SDS Authoring (~1s runtime).
-        'full' or 'sds' — runs full pipeline including 16-Section SDS Authoring & Reflection.
+    Manages state, dispatches model-mediated tool choices, handles reflection loops,
+    and packages final AgentRunResult.
     """
     start_time = time.time()
     logger.info(f"[Supervisor] Initializing ChemShield AI workflow (intent='{intent}', region='{region}', lang='{language}') for: '{user_input[:60]}'")
@@ -180,29 +182,123 @@ async def run_supervisor(
         status="success"
     )
 
-    # Step 2: Concurrent Multi-Agent Execution
-    logger.info("[Supervisor] Dispatching IntelligenceAgent, ChemicalAgent, HardwareAgent concurrently...")
-    await asyncio.gather(
-        run_intelligence_agent(state),
-        run_chemical_agent(state),
-        run_hardware_agent(state)
-    )
+    # Step 2: Model-Mediated ReAct Action Loop
+    # The supervisor model dynamically decides which specialist action to invoke based on current observations.
+    completed_actions = set()
+    observations: list[str] = []
+    max_steps = 4
+    step_count = 0
 
-    # Step 3: Compute Safety Verdict
+    while step_count < max_steps:
+        step_count += 1
+        available_actions = []
+        if "chemical" not in completed_actions and state.chemicals:
+            available_actions.append("check_chemical_compliance")
+        if "hardware" not in completed_actions and state.hardware:
+            available_actions.append("check_hardware_compatibility")
+        if "pubchem" not in completed_actions and state.chemicals:
+            available_actions.append("fetch_pubchem_intelligence")
+        
+        available_actions.append("finish_audit")
+
+        if len(available_actions) == 1 and "finish_audit" in available_actions:
+            logger.info("[Supervisor] All applicable tool checks completed. Finishing audit phase.")
+            break
+
+        # Model Policy Decision
+        policy_prompt = (
+            f"You are the Supervisor AI Policy model. Formulations Input: '{user_input}'.\n"
+            f"Extracted Chemicals: {[c.name for c in state.chemicals]}.\n"
+            f"Extracted Hardware: {[h.name for h in state.hardware]}.\n"
+            f"Completed Actions: {list(completed_actions)}.\n"
+            f"Current Observations: {observations if observations else 'None'}.\n"
+            f"Available Actions: {available_actions}.\n\n"
+            "Choose the next required action to take. Return ONLY valid JSON in format: {\"action\": \"action_name\", \"reasoning\": \"explanation\"}"
+        )
+        try:
+            decision_raw = await llm_chat(
+                messages=[
+                    {"role": "system", "content": "You are a multi-agent policy router. Return JSON only."},
+                    {"role": "user", "content": policy_prompt}
+                ],
+                json_mode=True
+            )
+            decision = json.loads(decision_raw)
+            next_action = decision.get("action", "finish_audit")
+            if next_action not in available_actions:
+                logger.warning(f"[Supervisor] Invalid action '{next_action}' requested by model. Falling back to '{available_actions[0]}'.")
+                next_action = available_actions[0]
+        except Exception:
+            next_action = available_actions[0] if available_actions else "finish_audit"
+
+        logger.info(f"[Supervisor Loop Step {step_count}] Model selected action: '{next_action}'")
+
+        if next_action == "finish_audit":
+            break
+        elif next_action == "check_chemical_compliance":
+            await run_chemical_agent(state)
+            completed_actions.add("chemical")
+            chem_obs = [f"{f.chemical_name}: status={f.status}, limit={f.regulatory_limit}" for f in state.chemical_flags]
+            observations.append(f"Chemical Compliance Audit: {chem_obs}")
+        elif next_action == "check_hardware_compatibility":
+            await run_hardware_agent(state)
+            completed_actions.add("hardware")
+            hw_obs = [f"{f.equipment_name}: status={f.status}, max_temp={f.max_safe_temperature_celsius}C" for f in state.hardware_flags]
+            observations.append(f"Hardware Compatibility Audit: {hw_obs}")
+        elif next_action == "fetch_pubchem_intelligence":
+            await run_intelligence_agent(state)
+            completed_actions.add("pubchem")
+            pub_obs = [f"{c}: CID={data.get('cid')}" for c, data in state.pubchem_data.items() if isinstance(data, dict)]
+            observations.append(f"PubChem Intelligence Query: {pub_obs}")
+        else:
+            break
+
+    # Safety Guardrail: Execute any unperformed essential agent steps if model skipped them prior to finish
+    if "chemical" not in completed_actions and state.chemicals:
+        logger.info("[Supervisor Guardrail] Model skipped chemical compliance check; executing guardrail check.")
+        await run_chemical_agent(state)
+        state.add_trace(
+            agent="Supervisor",
+            action="Safety Guardrail Override (Chemical Check)",
+            observation="Executed chemical compliance check required by safety policy after model finished early.",
+            status="warning"
+        )
+    if "hardware" not in completed_actions and state.hardware:
+        logger.info("[Supervisor Guardrail] Model skipped hardware compliance check; executing guardrail check.")
+        await run_hardware_agent(state)
+        state.add_trace(
+            agent="Supervisor",
+            action="Safety Guardrail Override (Hardware Check)",
+            observation="Executed hardware compatibility check required by safety policy after model finished early.",
+            status="warning"
+        )
+    if "pubchem" not in completed_actions and state.chemicals:
+        logger.info("[Supervisor Guardrail] Model skipped PubChem query; executing guardrail query.")
+        await run_intelligence_agent(state)
+        state.add_trace(
+            agent="Supervisor",
+            action="Safety Guardrail Override (PubChem Fetch)",
+            observation="Fetched PubChem intelligence data required for complete audit after model finished early.",
+            status="warning"
+        )
+
+    # Step 3: Compute Safety Verdict (Fail-Closed)
     boiling_hazards = []
     for hw in state.hardware:
         target_temp = hw.target_temperature_celsius
         if target_temp is not None:
             for c in state.chemicals:
-                bp = BOILING_POINTS_CELSIUS.get(c.name.lower()) or (get_osha_limits(c.name) or {}).get("boiling_point")
-                if bp and target_temp >= bp:
+                bp = BOILING_POINTS_CELSIUS.get(c.name.lower())
+                if bp is None:
+                    bp = (get_osha_limits(c.name) or {}).get("boiling_point")
+                if bp is not None and target_temp >= bp:
                     boiling_hazards.append(f"{c.name} (bp {bp}°C) heated to {target_temp}°C in {hw.name} — boiling hazard")
 
-    any_hw_fail   = any(not f.is_safe for f in state.hardware_flags)
-    any_chem_fail = any(not f.is_compliant for f in state.chemical_flags)
+    any_hw_review   = any(getattr(f, "status", "") == "REVIEW_REQUIRED" or not f.is_safe for f in state.hardware_flags)
+    any_chem_review = any(getattr(f, "status", "") in ("UNKNOWN", "REVIEW_REQUIRED") or not f.is_compliant for f in state.chemical_flags)
 
-    if any_hw_fail or any_chem_fail:
-        state.overall_status = "REJECTED"
+    if any_hw_review or any_chem_review:
+        state.overall_status = "REJECTED" if (any(not f.is_safe for f in state.hardware_flags) or any(not f.is_compliant for f in state.chemical_flags)) else "REVIEW_REQUIRED"
     elif boiling_hazards:
         state.overall_status = "PARTIAL"
     else:
@@ -267,8 +363,14 @@ async def run_supervisor(
         rag_context_relevancy=round(rag_relevancy, 2),
         agent_tool_call_success_rate=round(mcp_rate, 2),
         llm_instruction_following=llm_score,
-        total_latency=total_latency
+        total_latency=round(total_latency, 3)
     )
+
+    try:
+        with open("evaluation_results.json", "w", encoding="utf-8") as f:
+            json.dump(metrics.model_dump(), f, indent=4)
+    except Exception as e:
+        logger.warning(f"[Supervisor] Could not write to evaluation_results.json: {e}")
 
     comp_report = ComplianceReport(
         chemical_flags=state.chemical_flags,
@@ -279,7 +381,7 @@ async def run_supervisor(
         correction_notes=corr_notes,
         boundary_warnings=boundary_warnings,
         cache_status="Multi-Agent Pipeline Run",
-        llm_provider_used="Google Gemini"
+        llm_provider_used=LAST_PROVIDER_USED
     )
 
     result = AgentRunResult(

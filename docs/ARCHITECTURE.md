@@ -57,7 +57,7 @@ The system decouples compliance auditing from document synthesis using an **Inte
 
 ## 2. In-Depth Execution Workflow
 
-The pipeline operates through a deterministic 7-phase execution lifecycle. Each phase is monitored and tracked in real time via Server-Sent Events (SSE).
+The pipeline operates through a model-mediated 7-phase agentic execution lifecycle. Each phase is monitored and tracked in real time via Server-Sent Events (SSE).
 
 ### Phase 1: Request Ingress & Intent Routing
 - **Entry Point**: The request lands at `/api/v1/stream` or `/api/v1/audit` in `src/api/server.py`.
@@ -65,26 +65,22 @@ The pipeline operates through a deterministic 7-phase execution lifecycle. Each 
 - **Cache Check (Phase 0)**: The Supervisor queries `src/infrastructure/cache.py` using an SHA-256 hash of the normalized formulation text. On a cache hit, the system bypasses all downstream agent execution and returns the cached result in ~0.005 seconds.
 
 ### Phase 2: Entity Extraction & Normalization
-- **Supervisor Agent** (`src/agents/supervisor.py`) invokes the LLM (`src/infrastructure/llm_client.py`) with JSON output constraints to parse raw unstructured formulation text into structured data models:
+- **Supervisor Agent** (`src/agents/supervisor.py`) invokes the LLM (`src/infrastructure/llm_client.py`) with JSON output constraints and a bounded repair loop to parse raw unstructured formulation text into structured data models:
   - **Chemical Entities**: Extracted chemical names and detected concentrations (e.g., `94% Water`, `6% Benzene`, `500 ppm Acetone`).
   - **Hardware Entities**: Extracted container or equipment names and target operating temperatures (e.g., `borosilicate glass beaker at 50C`, `polypropylene container at 90C`).
 - **Fuzzy Auto-Correction**: Misspelled chemical names are cross-referenced against authoritative dictionaries (`src/utils/validator.py`) to prevent missing critical safety matches.
 
-### Phase 3: Parallel Agent Execution
-Once entities are extracted, the Supervisor dispatches three specialized agents asynchronously using `asyncio.gather()`:
+### Phase 3: Model-Mediated ReAct Action Loop
+Once entities are extracted, the Supervisor executes a dynamic ReAct decision loop (`decide -> act -> observe -> repeat/finish`):
 
-1. **Intelligence Agent** (`src/infrastructure/pubchem_client.py`):
-   - Queries the PubChem PUG REST API to fetch authoritative compound CIDs, CAS numbers, molecular weight, GHS pictogram codes (`GHS02`, `GHS08`), signal words (`DANGER`, `WARNING`), and hazard statements.
-   - Saves responses to local SQLite `pubchem_cache` with a 7-day TTL to eliminate redundant external network calls.
+1. **Policy Model Decision**: The Supervisor LLM receives extracted entities, completed actions, current observations, and available tool choices, dynamically deciding which agent tool to dispatch next (`check_chemical_compliance`, `check_hardware_compatibility`, `fetch_pubchem_intelligence`, `finish_audit`).
 
-2. **Chemical Compliance Agent** (`src/agents/chemical_agent.py`):
-   - Queries a ChromaDB vector database (`src/infrastructure/rag.py`) containing indexed OSHA Permissible Exposure Limits (PELs).
-   - If vector relevancy falls below standard thresholds or a chemical is unindexed, it executes a fallback query using the Tavily Web Search API to ground the safety limit against live OSHA/CDC regulatory sources.
-   - Evaluates chemical concentrations against OSHA volume percentage cut-offs (e.g., Benzene 0.1% limit) and airborne PPM TWA exposure limits.
+2. **Specialist Tool Execution**:
+   - **Chemical Compliance Agent** (`src/agents/chemical_agent.py`): Queries ChromaDB RAG (or Tavily web fallback) and evaluates OSHA PEL exposure limits, setting explicit compliance statuses (`COMPLIANT`, `NON_COMPLIANT`, `UNKNOWN`, `REVIEW_REQUIRED`).
+   - **Hardware Compliance Agent** (`src/agents/hardware_agent.py`): Connects over `stdio` transport to the FastMCP server (`src/infrastructure/mcp_server.py`), executes dynamic tool discovery (`session.list_tools()`), and verifies equipment thermal boundaries (`check_hardware_compatibility`).
+   - **Intelligence Agent** (`src/agents/intelligence_agent.py`): Queries PubChem PUG REST API for CAS numbers, GHS pictograms (`GHS02`, `GHS08`), signal words (`DANGER`, `WARNING`), and hazard statements.
 
-3. **Hardware Compliance Agent** (`src/agents/hardware_agent.py`):
-   - **Fast-Path Check**: Performs an in-memory dictionary lookup against known container limits (`HARDWARE_LIMITS` in `src/core/constants.py`).
-   - **Slow-Path FastMCP Protocol**: For non-standard equipment, opens an isolated subprocess (`src/infrastructure/mcp_server.py`) using the standard Model Context Protocol (`mcp.client.stdio`) to evaluate container thermal safety.
+3. **Observation Feedback & Safety Guardrails**: Results of each tool invocation are formatted as observations for subsequent policy decisions. If the model completes early, supervisor safety guardrails ensure all essential safety checks run fail-closed.
 
 ### Phase 4: Deterministic Safety Verdict & Summary Synthesis
 - **Verdict Calculation**: The Supervisor evaluates flags from all agents:

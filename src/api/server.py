@@ -35,9 +35,11 @@ app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 MAX_INPUT_LENGTH = int(os.getenv("MAX_INPUT_LENGTH", "2000"))
 
 
+from src.core.models import Intent
+
 class AuditRequest(BaseModel):
     user_input: str = Field(description="Lab formulation note or chemical input text")
-    intent: Literal["audit", "sds", "full"] = Field(default="audit", description="Action intent: 'audit', 'sds', or 'full'")
+    intent: Intent = Field(default=Intent.AUDIT, description="Action intent: 'audit', 'sds', 'full', or 'audit_and_sds'")
     region: str = Field(default="US", description="Regulatory jurisdiction region (e.g. US, EU, JP)")
     language: str = Field(default="en", description="Output language (e.g. en, es, fr, de, ja)")
 
@@ -117,7 +119,7 @@ async def audit_endpoint(req: AuditRequest):
 
 
 @app.get("/api/v1/stream")
-async def stream_audit_endpoint(input_text: str, intent: str = "audit", region: str = "US", language: str = "en"):
+async def stream_audit_endpoint(input_text: str, intent: Intent = Intent.AUDIT, region: str = "US", language: str = "en"):
     """
     Server-Sent Events endpoint.
     Attaches a per-request QueueHandler to the shared logger so every logger.info() call

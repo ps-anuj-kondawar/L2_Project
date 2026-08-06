@@ -1,79 +1,107 @@
 # Software Requirements Specification (SRS)
 
 **Project Name:** ChemShield AI - Chemical Safety & Multi-Region GHS SDS Platform  
-**Specification Version:** 2.5.0 (Production Specifications)  
+**Specification Version:** 3.0.0 (Final Capstone Submission Document)  
 **Document Status:** Approved & Implemented  
 
 ---
 
-## 1. Executive Summary & Purpose
+## 1. Executive Summary
 
-ChemShield AI is an enterprise multi-agent chemical safety compliance auditor and GHS Safety Data Sheet (SDS) authoring platform. The system ingests raw laboratory formulation notes, extracts chemical ingredients and laboratory hardware configurations, audits them against regulatory safety standards, and generates 16-section GHS Safety Data Sheets customizable by international regulatory jurisdiction and language.
+ChemShield AI is an enterprise-grade, multi-agent chemical safety compliance auditor and GHS Safety Data Sheet (SDS) authoring platform. The system ingests raw laboratory formulation notes, extracts chemical ingredients and laboratory hardware configurations, audits them against regulatory safety standards (OSHA PELs), and generates comprehensive 16-section GHS Safety Data Sheets customizable by international regulatory jurisdiction and language.
+
+This project was specifically architected to fulfill and exceed the capstone deliverables for the **LevelUp: AI Engineering Launchpad** (Level 1 Foundation & Level 2 Practitioner tracks).
 
 ---
 
-## 2. Functional Requirements
+## 2. Course Alignment: L1 & L2 Capstone Deliverables
+
+This section explicitly maps the platform's architectural implementations to the LevelUp course rubrics, ensuring mentors have a clear understanding of the applied learning outcomes.
+
+### 2.1 Level 1 (Foundation) Alignment
+The L1 track focuses on LLM fundamentals, effective prompting, and building a minimal RAG assistant.
+*   **Minimal RAG Assistant:** ChemShield AI implements a grounded retrieval pipeline. It chunks and embeds OSHA regulatory standards into a local **ChromaDB vector database**. When an audit is run, it performs a similarity search to retrieve specific Permissible Exposure Limits (PELs).
+*   **Prompt Engineering & Context Design:** The system utilizes strict, persona-driven system prompts with heavily restricted context windows (`RAG_TOP_K = 5`) to prevent context stuffing and hallucination. 
+*   **Vector Search & Embeddings:** Implements `sentence-transformers` for embedding regulatory texts and user queries.
+*   **Fallback Logic:** If the vector database yields low-confidence results, the system gracefully falls back to web retrieval via the Tavily API.
+
+### 2.2 Level 2 (Practitioner) Alignment
+The L2 track focuses on advanced agentic patterns, Model Context Protocol (MCP), reflection, and observability.
+*   **Multi-Agent Architecture:** Moved beyond single monolithic prompts to an Intent-Driven Multi-Agent Pipeline. The architecture consists of a Supervisor Orchestrator, an Intelligence Agent (PubChem REST API), a Chemical Agent (RAG/Tavily), a Hardware Agent (MCP), an SDS Authoring Agent, and a Reflection Agent.
+*   **Model Context Protocol (MCP):** To validate hardware safety (e.g., container thermal limits), the system spins up an isolated `FastMCP` sub-process. The `HardwareAgent` connects to this MCP server over `stdio` to execute tool calls safely, demonstrating secure tool-use patterns.
+*   **Reflection & Planning:** The `ReflectionAgent` evaluates the generated 16-section SDS document against GHS completeness guidelines. It acts as a critic and enforces a stop condition (maximum of 2 reflection iterations) to correct formatting errors or missing hazard statements before presenting the final document.
+*   **Automated Evals & Observability (SWE-Bench Style):** 
+    *   *Offline Evals:* A `run_benchmark.py` script uses the `ragas` framework and an LLM-as-a-judge to mathematically evaluate the pipeline's Context Precision, Answer Relevancy, and Faithfulness against a ground-truth JSONL dataset.
+    *   *Live Telemetry:* The UI features real-time Server-Sent Events (SSE) streaming and live metric scorecards (Latency, RAG Relevancy, MCP Success Rate, LLM Instruction Following).
+
+---
+
+## 3. Detailed System Architecture
+
+The system decouples compliance auditing from document synthesis using an **Intent-Driven Multi-Agent Architecture**.
+
+1.  **Supervisor Orchestrator (`src/agents/supervisor.py`)**: Routes the user's intent (`audit` vs `full sds`) and coordinates parallel execution of sub-agents.
+2.  **Entity Extraction**: Parses raw user input to identify chemical components, concentrations, and hardware.
+3.  **Chemical Agent**: Executes the RAG pipeline against ChromaDB to verify exposure limits.
+4.  **Hardware Agent**: Connects to the FastMCP server to validate hardware thermal limits.
+5.  **Intelligence Agent**: Queries PubChem for standard GHS pictograms and hazard codes.
+6.  **SDS Authoring Agent**: Synthesizes the aggregated telemetry into a localized 16-section SDS.
+7.  **Reflection Agent**: Audits the generated SDS and self-corrects prior to finalizing.
+
+---
+
+## 4. Functional Requirements
 
 ### FR-1: Formulation Input & Entity Extraction
-- **FR-1.1**: The system shall accept plain text formulation notes containing chemical names, volume/mass ratios, hardware container types, and target operating temperatures.
-- **FR-1.2**: The system shall parse and extract individual chemical entities, concentrations (e.g. `%`, `ppm`), hardware container names, and target temperatures in Celsius.
-- **FR-1.3**: The system shall perform fuzzy matching and automatic spelling correction for chemical names (e.g. `benzen` -> `Benzene`) and equipment types (e.g. `soda glass` -> `soda lime glass beaker`).
+*   **FR-1.1**: The system shall accept unstructured plain text inputs describing laboratory formulations (chemicals, volumes/masses, containers, and operating temperatures).
+*   **FR-1.2**: The extraction engine shall isolate entities and utilize `rapidfuzz` to automatically correct spelling variations in chemical names (e.g., `benzen` to `Benzene`) and hardware types.
 
-### FR-2: Multi-Agent Regulatory Compliance Audit
-- **FR-2.1**: The `IntelligenceAgent` shall query the PubChem PUG REST API to fetch official CAS registration numbers, GHS pictogram codes, signal words (`DANGER`, `WARNING`), and hazard statements.
-- **FR-2.2**: The `ChemicalAgent` shall query a local ChromaDB vector database (populated with OSHA regulatory standards) to verify concentration levels against Permissible Exposure Limits (PELs).
-- **FR-2.3**: If vector retrieval precision falls below threshold, the `ChemicalAgent` shall execute a web search fallback via the Tavily API.
-- **FR-2.4**: The `HardwareAgent` shall audit equipment thermal limits using an in-memory dictionary fast-path and Model Context Protocol (MCP) tool server invocation.
-- **FR-2.5**: The system shall compute an overall safety verdict:
-  - `APPROVED`: All chemicals comply with OSHA limits and hardware operates within safe thermal limits.
-  - `PARTIAL`: Exposure limit warnings or boiling hazard risks detected.
-  - `REJECTED`: Severe exposure limit violations or unsafe container temperatures detected.
+### FR-2: Regulatory RAG & Web Search Fallback
+*   **FR-2.1**: The `ChemicalAgent` shall query a local ChromaDB instance for OSHA safety regulations.
+*   **FR-2.2**: The retrieval pipeline must generate embeddings dynamically and restrict retrieved context to the top 5 chunks.
+*   **FR-2.3**: If the retrieved documents do not surpass the semantic similarity threshold, the agent shall automatically fallback to a live web search via the Tavily API.
 
-### FR-3: Intent-Driven Pipeline Execution
-- **FR-3.1**: The system shall support `intent="audit"` to execute entity extraction, multi-agent compliance auditing, safety verdict calculation, and LLM summary generation in ~1 second.
-- **FR-3.2**: The system shall support `intent="sds"` and `intent="audit_and_sds"` to generate a complete 16-section GHS SDS document on demand.
-- **FR-3.3**: When `intent="sds"` is requested for an audited formulation, the system shall reuse the cached audit state, skipping redundant entity extraction and network calls.
+### FR-3: MCP Hardware Tool Integration
+*   **FR-3.1**: The system shall initialize an independent Model Context Protocol (MCP) server.
+*   **FR-3.2**: The `HardwareAgent` shall establish a connection to the MCP server and pass the extracted hardware limits for validation, returning a definitive boolean flag for thermal safety.
 
-### FR-4: Multi-Region & Multi-Language SDS Authoring
-- **FR-4.1**: The `SDSAuthorAgent` shall synthesize formulation data, PubChem records, and compliance flags into a 16-section GHS SDS document tailored to the selected regulatory region (`US OSHA`, `EU REACH/CLP`, `JP JIS`, `CA WHMIS`, `UK GB-CLP`).
-- **FR-4.2**: The system shall translate and localize all 16 section titles, hazard disclosures, PPE instructions, and regulatory statements into the selected output language (`English`, `Spanish`, `French`, `German`, `Japanese`).
-- **FR-4.3**: The `ReflectionAgent` shall audit generated SDS documents for structural completeness, signal word consistency, and hazard statement alignment, triggering automated self-correction loops if defects are detected (max 2 iterations).
+### FR-4: Intent-Driven Pipeline Execution
+*   **FR-4.1 (Fast Path)**: If the user requests an `audit`, the pipeline shall bypass SDS document generation, calculate the safety verdict (`APPROVED`, `PARTIAL`, `REJECTED`), and return results in ~1-2 seconds.
+*   **FR-4.2 (Full Path)**: If the user requests an `sds`, the pipeline shall trigger the `SDSAuthorAgent` to generate a 16-section document localized by region (US, EU, JP) and language.
 
 ### FR-5: User Interface & Real-Time Telemetry
-- **FR-5.1**: The web interface shall feature a responsive two-column workspace layout with a right-hand sticky execution telemetry sidebar.
-- **FR-5.2**: The sidebar shall display a pulsing live execution status dot (`● LIVE`) and a 4-stage progress tracker (`Entity Extraction`, `Multi-Agent Audit`, `Safety Verdict`, `GHS SDS Authoring`).
-- **FR-5.3**: The sidebar shall stream Server-Sent Events (SSE) log messages in real time.
-- **FR-5.4**: The system shall display an automated SDS Worker Modal Preview whenever an SDS is generated.
-- **FR-5.5**: Document printing shall use an isolated hidden iframe with `print-color-adjust: exact` to render full-color 16-section SDS documents.
+*   **FR-5.1**: The frontend shall be a FastAPI-served Single Page Application utilizing raw HTML/JS/CSS (glassmorphism design).
+*   **FR-5.2**: The UI shall maintain a live connection to the backend via Server-Sent Events (SSE) to stream the execution trace logs dynamically.
+*   **FR-5.3**: Upon completion, the UI must render the `PipelineMetrics` (Latency, RAG Relevancy, MCP Success, Instruction Score) on screen.
+*   **FR-5.4**: The system shall include a context-aware Safety Copilot chatbot that remembers the current formulation context across multi-turn conversations.
 
-### FR-6: Safety Copilot
-- **FR-6.1**: The system shall provide an interactive Safety Copilot chatbot.
-- **FR-6.2**: The copilot shall automatically inject the active session formulation context into chat prompts to answer follow-up safety questions without requiring re-typing.
+### FR-6: Offline Evaluation Benchmarking
+*   **FR-6.1**: A dedicated benchmarking pipeline shall read from `benchmark_dataset.jsonl`.
+*   **FR-6.2**: The benchmark suite shall use `ragas` connected to Google Gemini to evaluate the RAG pipeline's context retrieval accuracy and the LLM's faithfulness, dumping results to `evaluation_results.json`.
 
 ---
 
-## 3. Non-Functional Requirements
+## 5. Non-Functional Requirements
 
 ### NFR-1: Performance & Latency
-- Compliance Audit (`intent="audit"`) execution time shall not exceed 2.5 seconds on un-cached requests.
-- Semantic cache hits shall respond in under 0.05 seconds (50 ms).
+*   **API Response Time**: Basic audits shall resolve in under 2.5 seconds.
+*   **Caching**: A semantic caching layer (`cache.db`) must return identical historical queries in under 50 milliseconds.
 
-### NFR-2: Reliability & Concurrency
-- SQLite database operations shall use Write-Ahead Logging (`WAL` mode) and connection pooling (`threading.local()`) to guarantee thread safety under concurrent requests.
+### NFR-2: Thread Safety & Concurrency
+*   **Database Reliability**: The local SQLite semantic cache must implement Write-Ahead Logging (`WAL`) to prevent database locks during highly concurrent asynchronous agent operations.
 
-### NFR-3: Security & Code Quality
-- API keys shall be stored strictly in environment variables (`.env`) and never committed to source control.
-- Input validation shall sanitize user prompt strings before LLM execution.
-- Codebase, comments, and documentation shall contain zero emojis.
+### NFR-3: Security & Observability
+*   **Secret Management**: LLM and search API keys must strictly reside in `.env` configurations.
+*   **Logging**: All agent interactions must be trace-logged into the system's runtime memory and exposed via the SSE stream for full observability.
 
 ---
 
-## 4. System Interfaces & APIs
+## 6. System Interfaces & REST APIs
 
-| Endpoint | Method | Input Payload / Query Params | Output Response | Description |
-|---|---|---|---|---|
-| `/` | GET | None | HTML | Serves ChemShield AI web application |
-| `/api/v1/stream` | GET | `input_text`, `intent`, `region`, `language` | SSE Stream | Real-time log stream and progress events |
-| `/api/v1/audit` | POST | `{user_input, intent, region, language}` | JSON | Blocking compliance audit response |
-| `/api/v1/chat` | POST | `{message, history, formulation_context}` | JSON | Safety copilot chatbot endpoint |
-| `/api/v1/examples` | GET | None | JSON | Scenario presets |
+| Endpoint | Method | Payload | Description |
+|---|---|---|---|
+| `/` | GET | None | Serves the main Single Page Application |
+| `/api/v1/stream` | GET | `input_text`, `intent` | SSE Stream for real-time progress and trace logs |
+| `/api/v1/audit` | POST | `{user_input, intent}` | Returns the full `AgentRunResult` and JSON metrics |
+| `/api/v1/chat` | POST | `{message, history}` | Context-aware Safety Copilot chat endpoint |
+| `/api/v1/examples` | GET | None | Fetches pre-configured test scenarios for the UI |

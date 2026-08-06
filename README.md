@@ -56,10 +56,10 @@ ChemShield AI automates this complex evaluation process by combining vector sear
 ```
 
 ### Agent Roles:
-1. **Supervisor Agent**: Manages state, entity extraction, intent parsing, agent dispatch, and final verdict packaging.
+1. **Supervisor Agent**: Manages state, entity extraction, intent parsing, ReAct action policy loop (`decide -> act -> observe -> finish`), and final verdict packaging.
 2. **Intelligence Agent**: Queries PubChem PUG REST API for CAS numbers, GHS pictograms, signal words, and hazard statements.
 3. **Chemical Agent**: Queries ChromaDB vector database for OSHA Permissible Exposure Limits (PELs); falls back to Tavily web search if unindexed.
-4. **Hardware Agent**: Fast-path dictionary lookup and FastMCP tool server invocation to audit container thermal limits.
+4. **Hardware Agent**: Executes genuine Model Context Protocol (FastMCP) tool discovery and execution over stdio transport to audit container thermal limits.
 5. **SDS Authoring Agent**: Synthesizes formulation data, PubChem records, and compliance flags into a 16-section GHS SDS document with multi-region regulatory compliance (US OSHA, EU REACH/CLP, JP JIS, CA WHMIS, UK GB CLP) and multi-language output (English, Spanish, French, German, Japanese).
 6. **Reflection Agent**: Self-correction loop that validates GHS document completeness and structure before finalization.
 
