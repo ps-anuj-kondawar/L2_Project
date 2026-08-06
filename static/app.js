@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const sdsMvReflect      = document.getElementById('sds-mv-reflect');
   const sdsMvIters        = document.getElementById('sds-mv-iters');
   const printSdsBtn       = document.getElementById('print-sds-btn');
-  const generateSdsBtn    = document.getElementById('generate-sds-btn');
 
   // Trace section
   const traceList         = document.getElementById('trace-list');
@@ -197,17 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
     modalPrintBtn.addEventListener('click', printStandaloneSds);
   }
 
-  if (generateSdsBtn) {
-    generateSdsBtn.addEventListener('click', () => {
-      const text = formulationInput.value.trim() || session.formulation;
-      if (!text) {
-        alert('Please enter a formulation first.');
-        return;
-      }
-      runAudit(text, 'sds');
-    });
-  }
-
   // ── Trigger run ───────────────────────────────────────────────────────────
   function triggerRun() {
     const text = formulationInput.value.trim();
@@ -217,7 +205,15 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => { formulationInput.style.borderColor = ''; }, 1800);
       return;
     }
-    runAudit(text, 'audit');
+    
+    // Automatically detect if user wants an SDS
+    const lowerText = text.toLowerCase();
+    let intent = 'audit';
+    if (lowerText.includes('sds') || lowerText.includes('safety data sheet')) {
+      intent = 'full';
+    }
+    
+    runAudit(text, intent);
   }
 
   if (cardRunBtn)   cardRunBtn.addEventListener('click', triggerRun);
@@ -227,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function setRunning(running, intent = 'audit') {
     const regionEl = document.getElementById('select-region');
     const langEl = document.getElementById('select-language');
-    [cardRunBtn, globalRunBtn, generateSdsBtn, regionEl, langEl].filter(Boolean).forEach(b => { b.disabled = running; });
+    [cardRunBtn, globalRunBtn, regionEl, langEl].filter(Boolean).forEach(b => { b.disabled = running; });
     if (running) {
       if (cardRunLabel) cardRunLabel.textContent = (intent === 'sds' || intent === 'full' ? 'Authoring 16-Section GHS SDS...' : 'Running Compliance Audit...');
       if (runStatusChip) {
@@ -382,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
       verdictBanner.innerHTML = '';
       summaryText.textContent = 'Running compliance check...';
       flagsContainer.innerHTML = '<div class="empty-state">Evaluating chemicals and hardware...</div>';
-      sdsHtmlWrapper.innerHTML = '<p class="empty-state">Compliance Audit complete. Click <strong>"Generate GHS SDS"</strong> above to author the 16-section SDS document on demand.</p>';
+      sdsHtmlWrapper.innerHTML = '<p class="empty-state">Compliance Audit complete. Ask for a Safety Data Sheet in your prompt to generate a 16-section GHS document.</p>';
       traceList.innerHTML = '<div class="empty-state">Collecting trace data...</div>';
 
       [mvLatency, mvRag, mvTools, mvReflect, sdsMvSections, sdsMvReflect,
@@ -466,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (modalSdsBody) renderIframeSDS(modalSdsBody, result.sds_html);
       if (sdsModalOverlay) sdsModalOverlay.classList.remove('hidden');
     } else {
-      sdsHtmlWrapper.innerHTML = '<p class="empty-state">Compliance Audit complete. Click <strong>"Generate GHS SDS"</strong> above to author the 16-section SDS document on demand.</p>';
+      sdsHtmlWrapper.innerHTML = '<p class="empty-state">Compliance Audit complete. Ask for a Safety Data Sheet in your prompt to generate a 16-section GHS document.</p>';
     }
 
     // Count sections from the structured sds_document in the result

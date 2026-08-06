@@ -198,6 +198,8 @@ async def run_supervisor(
             available_actions.append("check_hardware_compatibility")
         if "pubchem" not in completed_actions and state.chemicals:
             available_actions.append("fetch_pubchem_intelligence")
+        if "sds" not in completed_actions:
+            available_actions.append("flag_sds_required")
         
         available_actions.append("finish_audit")
 
@@ -213,7 +215,7 @@ async def run_supervisor(
             f"Completed Actions: {list(completed_actions)}.\n"
             f"Current Observations: {observations if observations else 'None'}.\n"
             f"Available Actions: {available_actions}.\n\n"
-            "Choose the next required action to take. Return ONLY valid JSON in format: {\"action\": \"action_name\", \"reasoning\": \"explanation\"}"
+            "Choose the next required action to take. If the user explicitly asks for an SDS or Safety Data Sheet, choose 'flag_sds_required'. Return ONLY valid JSON in format: {\"action\": \"action_name\", \"reasoning\": \"explanation\"}"
         )
         try:
             decision_raw = await llm_chat(
@@ -235,6 +237,10 @@ async def run_supervisor(
 
         if next_action == "finish_audit":
             break
+        elif next_action == "flag_sds_required":
+            completed_actions.add("sds")
+            intent = "full"
+            observations.append("User requested SDS generation; flagged intent='full'.")
         elif next_action == "check_chemical_compliance":
             await run_chemical_agent(state)
             completed_actions.add("chemical")
