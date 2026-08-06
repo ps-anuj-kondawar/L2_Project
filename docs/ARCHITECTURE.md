@@ -144,7 +144,7 @@ ChemShield AI incorporates five key layers of token and operational cost reducti
    - `input_cache`: Serializes full `AgentRunResult` keyed by input hash. Bypasses LLM entirely on repeated requests (~0 tokens, ~0.005s latency).
    - `pubchem_cache`: Caches raw PubChem REST responses locally with a 7-day TTL.
    - `summary_cache`: Reuses safety summaries for identical violation sets.
-2. **In-Memory Hardware Fast-Path**: Eliminates LLM and MCP tool calls for common equipment (e.g. borosilicate glass, polypropylene).
+2. **FastMCP Stdio Process Protocol**: Executes isolated tool subprocess calls with dynamic tool discovery and transport caching.
 3. **Task-Specific Agentic Prompts**: Splits monolithic tasks into minimal prompt calls (Extraction, Chemical Audit, SDS Generation), avoiding large prompt context bloat.
 4. **Bounded RAG Vector Retrieval**: Retrieves strictly `RAG_TOP_K = 5` chunks from ChromaDB, preventing context window stuffing.
 5. **Provider & Model Routing**: Routes lightweight extraction tasks to fast/cheap models (Gemini Flash or OpenRouter free tier) while reserving larger models strictly for SDS authoring.
