@@ -55,8 +55,9 @@ async def run_benchmark():
 
     # 3. Setup Gemini for Ragas
     # Ragas uses Langchain interfaces
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+    llm = ChatGoogleGenerativeAI(model=model_name, temperature=0)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
     
     # 4. Create Ragas Dataset
     data = {

@@ -9,7 +9,7 @@ from src.core.logger import logger
 load_dotenv(override=True)
 
 LLM_PROVIDER      = os.getenv("LLM_PROVIDER", "gemini")
-GEMINI_MODEL      = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL      = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 OPENROUTER_MODEL  = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 OPENROUTER_MAX_TOKENS = int(os.getenv("OPENROUTER_MAX_TOKENS", "4096"))
 

@@ -15,7 +15,7 @@ ChemShield AI automates this complex evaluation process by combining vector sear
 ## Tech Stack
 
 - **Core Framework**: Python 3.11 / 3.13, FastAPI, Uvicorn
-- **LLM Reasoning & Authoring**: Google Gemini 2.0 Flash / OpenRouter Multi-Provider Fallback
+- **LLM Reasoning & Authoring**: Google Gemini 3.6 Flash / OpenRouter Multi-Provider Fallback
 - **Agent Architecture**: Modular Asyncio Multi-Agent Execution Framework
 - **Tool Protocol**: Model Context Protocol (FastMCP) for hardware thermal compatibility lookup
 - **Vector Search & Grounding**: ChromaDB (OSHA Standards Vector DB) and Tavily Web Search API
