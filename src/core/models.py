@@ -89,7 +89,6 @@ class ComplianceReport(BaseModel):
         description=(
             "'APPROVED' if all checks pass. "
             "'REJECTED' if any check fails or there is a severe hazard. "
-            "'PARTIAL' if mixed or secondary risks. "
             "'REVIEW_REQUIRED' if extraction/MCP failure or unknown chemical occurs."
         )
     )

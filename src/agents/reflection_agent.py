@@ -3,6 +3,10 @@ import re
 from src.core.state import AgentState
 from src.core.logger import logger
 
+# Compiled regex patterns
+_CAS_PATTERN = re.compile(r"\b\d{2,7}-\d{2}-\d\b")
+_PHONE_PATTERN = re.compile(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b")
+
 
 async def run_reflection_agent(state: AgentState) -> AgentState:
     """
@@ -37,7 +41,7 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
 
     # Check 2: CAS Hallucination check in Section 3
     sec3_content = next((s.content for s in sds.sections if s.section_number == 3), "")
-    cas_in_sds = re.findall(r"\b\d{2,7}-\d{2}-\d\b", sec3_content)
+    cas_in_sds = _CAS_PATTERN.findall(sec3_content)
     known_cas = {
         p.get("cas_number")
         for p in state.pubchem_data.values()
@@ -85,7 +89,7 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
     sec1_content = next((s.content for s in sds.sections if s.section_number == 1), "")
     sec1_upper = sec1_content.upper()
     has_emergency = ("EMERGENCY" in sec1_upper or "CHEMTREC" in sec1_upper) and (
-        "RESPONSIBLE PARTY" in sec1_upper or re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", sec1_content) is not None
+        "RESPONSIBLE PARTY" in sec1_upper or _PHONE_PATTERN.search(sec1_content) is not None
     )
     if not has_emergency:
         state.reflection_passed = False

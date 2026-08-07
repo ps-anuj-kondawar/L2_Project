@@ -7,6 +7,13 @@ from src.core.logger import logger
 from src.core.models import PubChemData
 from src.infrastructure.cache import get_pubchem_cache, set_pubchem_cache
 
+# Compiled regex patterns
+_H_CODE_PATTERN = re.compile(r"H\d{3}")
+_P_CODE_PATTERN = re.compile(r"P\d{3}")
+_H_TEXT_PATTERN = re.compile(r"H\d{3}:?\s*[^\"'\n,]+")
+_P_TEXT_PATTERN = re.compile(r"P\d{3}:?\s*[^\"'\n,]+")
+_CAS_PATTERN = re.compile(r"\b\d{2,7}-\d{2}-\d\b")
+
 # Rate limit semaphore lazy-initialized on first use inside the running event loop
 _pubchem_semaphore: asyncio.Semaphore | None = None
 
@@ -131,11 +138,11 @@ async def get_pubchem_ghs(cid: int) -> dict[str, Any]:
                                 ghs_info["ghs_pictogram_codes"].append(code)
                 elif "Hazard" in heading:
                     for v in values:
-                        if re.search(r"H\d{3}", v) and v not in ghs_info["hazard_statements"]:
+                        if _H_CODE_PATTERN.search(v) and v not in ghs_info["hazard_statements"]:
                             ghs_info["hazard_statements"].append(v)
                 elif "Precautionary" in heading:
                     for v in values:
-                        if re.search(r"P\d{3}", v) and v not in ghs_info["precautionary_statements"]:
+                        if _P_CODE_PATTERN.search(v) and v not in ghs_info["precautionary_statements"]:
                             ghs_info["precautionary_statements"].append(v)
 
         # Fallback to text_nodes regex if section walker found nothing specific
@@ -146,9 +153,9 @@ async def get_pubchem_ghs(cid: int) -> dict[str, Any]:
             for code in ["GHS01", "GHS02", "GHS03", "GHS04", "GHS05", "GHS06", "GHS07", "GHS08", "GHS09"]:
                 if code in text_nodes and code not in ghs_info["ghs_pictogram_codes"]:
                     ghs_info["ghs_pictogram_codes"].append(code)
-            h_codes = list(set(re.findall(r"H\d{3}:?\s*[^\"'\n,]+", text_nodes)))
+            h_codes = list(set(_H_TEXT_PATTERN.findall(text_nodes)))
             ghs_info["hazard_statements"] = h_codes[:8]
-            p_codes = list(set(re.findall(r"P\d{3}:?\s*[^\"'\n,]+", text_nodes)))
+            p_codes = list(set(_P_TEXT_PATTERN.findall(text_nodes)))
             ghs_info["precautionary_statements"] = p_codes[:10]
 
     except Exception as e:
