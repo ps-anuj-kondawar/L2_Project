@@ -3,6 +3,7 @@ import json
 from unittest.mock import patch, AsyncMock
 from src.agents.supervisor import run_supervisor
 from src.infrastructure.pubchem_client import get_pubchem_data
+from src.agents.sds_author_agent import _clean_section_title
 
 async def mock_sds_llm_chat(messages, json_mode=False):
     sys_msg = next((m["content"] for m in messages if m["role"] == "system"), "")
@@ -64,6 +65,13 @@ class TestSDSGeneration(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Safety Data Sheet", result.sds_html)
         self.assertTrue(result.reflection_passed)
         self.assertGreater(len(result.trace), 0)
+
+    def test_clean_section_title_strips_double_numbering(self):
+        self.assertEqual(_clean_section_title(1, "1. Identification"), "Identification")
+        self.assertEqual(_clean_section_title(1, "SECTION 1: 1. Identification"), "Identification")
+        self.assertEqual(_clean_section_title(2, "2. Hazard(s) Identification"), "Hazard(s) Identification")
+        self.assertEqual(_clean_section_title(3, "3 - Composition"), "Composition")
+        self.assertEqual(_clean_section_title(4, "First-Aid Measures"), "First-Aid Measures")
 
 
 if __name__ == "__main__":

@@ -33,6 +33,15 @@ SDS_SECTION_TITLES = [
 ]
 
 
+import re
+
+
+def _clean_section_title(sec_num: int, raw_title: str) -> str:
+    """Strip leading redundant prefixes like '1.', 'SECTION 1:', '1 -' from section title."""
+    cleaned = re.sub(r'^(?:SECTION\s*\d+[\s:-]*)?(?:\d+[\s.:-]*)?', '', raw_title, flags=re.IGNORECASE).strip()
+    return cleaned if cleaned else raw_title
+
+
 async def run_sds_author_agent(state: AgentState) -> AgentState:
     """
     GHS SDS Authoring Agent.
@@ -127,7 +136,11 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
             json_mode=True
         )
         sections_data = json.loads(raw_json)
-        sections = [SDSSection.model_validate(s) for s in sections_data]
+        sections = []
+        for s in sections_data:
+            sec_obj = SDSSection.model_validate(s)
+            sec_obj.title = _clean_section_title(sec_obj.section_number, sec_obj.title)
+            sections.append(sec_obj)
     except Exception as e:
         logger.warning(f"[SDSAuthorAgent] LLM SDS JSON generation failed ({e}). Falling back to structured fallback sections.")
         sections = []
@@ -159,9 +172,23 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
             if svg_content:
                 pic_svgs.append(svg_content)
         
-        warning_msg = None
-        if not state.reflection_passed and state.reflection_notes:
-            warning_msg = f"Failed automated review: {'; '.join(state.reflection_notes)}. Human expert review required."
+        warning_notes = []
+        if state.boundary_warnings:
+            warning_notes.extend(state.boundary_warnings)
+        if state.reflection_notes:
+            warning_notes.extend(state.reflection_notes)
+
+        # Deduplicate warnings while preserving order
+        seen = set()
+        unique_notes = []
+        for note in warning_notes:
+            if note and note not in seen:
+                seen.add(note)
+                unique_notes.append(note)
+
+        warning_msg = "\n• ".join(unique_notes) if unique_notes else None
+        if warning_msg and not warning_msg.startswith("• "):
+            warning_msg = "• " + warning_msg
 
         state.sds_html = tpl.render(
             sds=sds_doc,

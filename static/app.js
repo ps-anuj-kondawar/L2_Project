@@ -143,6 +143,49 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  async function downloadSdsPdf() {
+    const text = (formulationInput && formulationInput.value.trim()) || session.formulation || '';
+    if (!text) {
+      alert('Please enter or run a formulation audit first.');
+      return;
+    }
+
+    const origText = printSdsBtn ? printSdsBtn.textContent : 'Print / Save as PDF';
+    if (printSdsBtn) { printSdsBtn.disabled = true; printSdsBtn.textContent = 'Generating PDF...'; }
+    if (modalPrintBtn) { modalPrintBtn.disabled = true; modalPrintBtn.textContent = 'Generating PDF...'; }
+
+    const regionEl = document.getElementById('select-region');
+    const langEl = document.getElementById('select-language');
+    const region = regionEl ? regionEl.value : 'US';
+    const language = langEl ? langEl.value : 'en';
+
+    try {
+      const res = await fetch('/api/v1/sds/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_input: text, intent: 'full', region: region, language: language })
+      });
+
+      if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GHS_SDS_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF Endpoint download error:', err);
+      alert('Failed to generate PDF document: ' + err.message);
+    } finally {
+      if (printSdsBtn) { printSdsBtn.disabled = false; printSdsBtn.textContent = origText; }
+      if (modalPrintBtn) { modalPrintBtn.disabled = false; modalPrintBtn.textContent = 'Download PDF'; }
+    }
+  }
+
   function printStandaloneSds() {
     const sdsHtml = (modalSdsBody && modalSdsBody.innerHTML) || (sdsHtmlWrapper && sdsHtmlWrapper.innerHTML);
     if (!sdsHtml || sdsHtml.includes('empty-state')) {
@@ -150,32 +193,19 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    let iframe = document.getElementById('sds-print-iframe');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'sds-print-iframe';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      document.body.appendChild(iframe);
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+      printWin.document.write(sdsHtml);
+      printWin.document.close();
+      setTimeout(() => {
+        printWin.focus();
+        printWin.print();
+      }, 300);
     }
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(sdsHtml);
-    doc.close();
-
-    setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    }, 200);
   }
 
   if (printSdsBtn) {
-    printSdsBtn.addEventListener('click', printStandaloneSds);
+    printSdsBtn.addEventListener('click', downloadSdsPdf);
   }
 
   if (modalCloseBtn) {
@@ -193,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (modalPrintBtn) {
-    modalPrintBtn.addEventListener('click', printStandaloneSds);
+    modalPrintBtn.addEventListener('click', downloadSdsPdf);
   }
 
   // ── Trigger run ───────────────────────────────────────────────────────────
@@ -378,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
       verdictBanner.innerHTML = '';
       summaryText.textContent = 'Running compliance check...';
       flagsContainer.innerHTML = '<div class="empty-state">Evaluating chemicals and hardware...</div>';
-      sdsHtmlWrapper.innerHTML = '<p class="empty-state">Compliance Audit complete. Ask for a Safety Data Sheet in your prompt to generate a 16-section GHS document.</p>';
+      sdsHtmlWrapper.innerHTML = '<p class="empty-state" style="text-align:center; padding:32px;">Evaluating formulation... Authoring 16-section GHS Safety Data Sheet.</p>';
       traceList.innerHTML = '<div class="empty-state">Collecting trace data...</div>';
 
       [mvLatency, mvRag, mvTools, mvReflect, sdsMvSections, sdsMvReflect,
@@ -462,7 +492,23 @@ document.addEventListener('DOMContentLoaded', () => {
       if (modalSdsBody) renderIframeSDS(modalSdsBody, result.sds_html);
       if (sdsModalOverlay) sdsModalOverlay.classList.remove('hidden');
     } else {
-      sdsHtmlWrapper.innerHTML = '<p class="empty-state">Compliance Audit complete. Ask for a Safety Data Sheet in your prompt to generate a 16-section GHS document.</p>';
+      sdsHtmlWrapper.innerHTML = `
+        <div class="empty-state" style="text-align: center; padding: 40px 20px;">
+          <p style="margin-bottom: 16px; font-size: 14px; color: var(--text-muted);">
+            Compliance Audit complete. Click below to author a full 16-section GHS Safety Data Sheet for this formulation:
+          </p>
+          <button class="btn-pill-primary" id="generate-sds-direct-btn">
+            Generate 16-Section GHS SDS <span class="arrow-icon">&#8594;</span>
+          </button>
+        </div>
+      `;
+      const directSdsBtn = document.getElementById('generate-sds-direct-btn');
+      if (directSdsBtn) {
+        directSdsBtn.addEventListener('click', () => {
+          const text = formulationInput.value.trim();
+          if (text) runAudit(text, 'full');
+        });
+      }
     }
 
     // Count sections from the structured sds_document in the result
