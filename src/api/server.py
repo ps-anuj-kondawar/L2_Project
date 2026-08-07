@@ -4,13 +4,14 @@ import json
 import logging
 from typing import Literal
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from src.agents.supervisor import run_supervisor
 from src.core.copilot import copilot_chat
+from src.infrastructure.pdf_generator import generate_sds_pdf
 from src.core.logger import logger
 
 app = FastAPI(
@@ -27,6 +28,15 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_no_cache_header(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 os.makedirs("static", exist_ok=True)
 os.makedirs("assets/pictograms", exist_ok=True)
@@ -214,6 +224,59 @@ async def chat_endpoint(req: ChatRequest):
         return JSONResponse(content=res_dict)
     except Exception as e:
         logger.error(f"chat_endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/sds/pdf")
+async def download_sds_pdf(req: AuditRequest):
+    """
+    Generate and download a full multi-page PDF document for a 16-section GHS Safety Data Sheet.
+    """
+    if not req.user_input or not req.user_input.strip():
+        raise HTTPException(status_code=400, detail="Input text cannot be empty.")
+    if len(req.user_input) > MAX_INPUT_LENGTH:
+        raise HTTPException(status_code=400, detail=f"Input text exceeds maximum length of {MAX_INPUT_LENGTH} characters.")
+
+    try:
+        result = await run_supervisor(
+            req.user_input.strip(),
+            intent=Intent.FULL,
+            region=req.region,
+            language=req.language
+        )
+        if not result.sds_document:
+            raise HTTPException(status_code=400, detail="Could not generate SDS document for this formulation.")
+
+        warning_notes = []
+        if result.compliance_report.boundary_warnings:
+            warning_notes.extend(result.compliance_report.boundary_warnings)
+        if not result.reflection_passed:
+            warning_notes.append("Automated reflection review flagged compliance items. Expert CSP review required.")
+
+        seen = set()
+        unique_notes = []
+        for note in warning_notes:
+            if note and note not in seen:
+                seen.add(note)
+                unique_notes.append(note)
+
+        warning_msg = "\n• ".join(unique_notes) if unique_notes else None
+        if warning_msg and not warning_msg.startswith("• "):
+            warning_msg = "• " + warning_msg
+
+        pdf_bytes = generate_sds_pdf(result.sds_document, warning_banner=warning_msg)
+        safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', result.sds_document.product_name)
+        filename = f"SDS_{safe_name}.pdf"
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"download_sds_pdf error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

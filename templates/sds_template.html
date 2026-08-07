@@ -167,13 +167,16 @@
   <div class="header-bar">
     <div class="title-area">
       <h1>Safety Data Sheet (OSHA GHS HazCom 2012)</h1>
-      <subtitle>Product Name: <strong>{{ sds.product_name }}</strong> | Revision Date: {{ sds.revision_date }} | Prepared by: {{ sds.prepared_by }}</subtitle>
+      <div class="subtitle" style="font-size: 13px; color: #718096; margin-top: 4px;">Product Name: <strong>{{ sds.product_name }}</strong> | Revision Date: {{ sds.revision_date }} | Prepared by: {{ sds.prepared_by }}</div>
     </div>
   </div>
 
   {% if warning_banner %}
-  <div class="warning-banner">
-    <strong>AUTOMATED REVIEW NOTICE:</strong> {{ warning_banner }}
+  <div style="background-color: #fef2f2; border: 2px solid #dc2626; border-left: 6px solid #991b1b; padding: 14px 18px; margin-bottom: 20px; border-radius: 6px; font-size: 13.5px; color: #991b1b; line-height: 1.5;">
+    <strong style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; color: #7f1d1d;">
+      CRITICAL DOMAIN &amp; REGULATORY WARNING NOTICE
+    </strong>
+    <span style="font-weight: 700; color: #991b1b; white-space: pre-wrap;">{{ warning_banner }}</span>
   </div>
   {% endif %}
 

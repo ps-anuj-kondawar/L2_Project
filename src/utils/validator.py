@@ -52,11 +52,11 @@ def validate_physical_boundaries(
     warnings: list[str] = []
 
     for name, conc in chemicals:
-        # Detect contradictory unit (e.g. "5% ppm")
-        if conc and "%" in conc and "ppm" in conc.lower():
+        # Detect airborne units (ppm) specified as formulation concentration
+        if conc and "ppm" in conc.lower():
             warnings.append(
-                f"'{name}': concentration '{conc}' contains contradictory units (% and ppm). "
-                f"Please clarify which unit applies."
+                f"'{name}': specified concentration '{conc}' uses airborne exposure units (ppm). "
+                f"GHS Section 3 composition requires weight/volume percentage (% w/w or % v/v)."
             )
 
     for hw_name, temp in hardware:
