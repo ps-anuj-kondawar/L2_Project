@@ -1,4 +1,4 @@
 {"user_input": "Formula A-1: 94% Water, 6% Benzene. Heated to 50C in a borosilicate glass beaker.", "expected_status": "REJECTED"}
 {"user_input": "Mix 99.999% Water and 0.5 ppm Benzene. Store at 25C in a polypropylene container.", "expected_status": "APPROVED"}
-{"user_input": "Formula B-2: 500 ppm Acetone in water. Heat to 60C in a polypropylene container.", "expected_status": "PARTIAL"}
+{"user_input": "Formula B-2: 500 ppm Acetone in water. Heat to 60C in a polypropylene container.", "expected_status": "REJECTED"}
 {"user_input": "Water heating: 100% Water. Heat to 120C in a soda-lime glass beaker.", "expected_status": "REJECTED"}

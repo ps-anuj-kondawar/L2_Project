@@ -19,11 +19,12 @@ app = FastAPI(
     version="2.0.0"
 )
 
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000,*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in ALLOWED_ORIGINS],
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -33,6 +34,7 @@ os.makedirs("assets/pictograms", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 MAX_INPUT_LENGTH = int(os.getenv("MAX_INPUT_LENGTH", "2000"))
+import re
 
 
 from src.core.models import Intent
@@ -194,11 +196,16 @@ async def chat_endpoint(req: ChatRequest):
     """
     if not req.message or not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
+    
+    sanitised_context = None
+    if req.formulation_context:
+        sanitised_context = re.sub(r"[<>{}\[\]]", "", req.formulation_context)[:500]
+
     try:
         res_dict = await copilot_chat(
             message=req.message.strip(),
             history=req.history,
-            formulation_context=req.formulation_context,
+            formulation_context=sanitised_context,
             audit_summary=req.audit_summary,
         )
         return JSONResponse(content=res_dict)

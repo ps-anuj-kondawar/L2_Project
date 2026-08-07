@@ -35,14 +35,17 @@ _TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 _tavily_client: TavilyClient | None = TavilyClient(api_key=_TAVILY_API_KEY) if _TAVILY_API_KEY else None
 
 
-def _search_chemical_text_sync(chemical_name: str) -> tuple[str, str]:
+def _search_chemical_text_sync(chemical_name: str, region: str = "US") -> tuple[str, str]:
     if not _tavily_client:
         return "", ""
     try:
-        query = (
-            f"{chemical_name} OSHA TWA permissible exposure limit ppm boiling point "
-            f"site:osha.gov OR site:pubchem.ncbi.nlm.nih.gov OR site:cdc.gov"
-        )
+        if region.upper() == "EU":
+            query = f"{chemical_name} EU CLP occupational exposure limit OEL ppm boiling point site:echa.europa.eu OR site:pubchem.ncbi.nlm.nih.gov"
+        elif region.upper() == "CA":
+            query = f"{chemical_name} WHMIS occupational exposure limit OEL ppm boiling point site:canada.ca OR site:pubchem.ncbi.nlm.nih.gov"
+        else:
+            query = f"{chemical_name} OSHA TWA permissible exposure limit ppm boiling point site:osha.gov OR site:pubchem.ncbi.nlm.nih.gov OR site:cdc.gov"
+            
         results = _tavily_client.search(query=query, max_results=3)
         combined_text = " ".join(
             str(r.get("raw_content") or r.get("content") or "") for r in results.get("results", [])
@@ -50,12 +53,12 @@ def _search_chemical_text_sync(chemical_name: str) -> tuple[str, str]:
         source_url = results["results"][0]["url"] if results.get("results") else ""
         return combined_text, source_url
     except Exception as e:
-        logger.warning(f"[ChemicalAgent] Tavily search failed for '{chemical_name}': {e}")
+        logger.warning(f"[ChemicalAgent] Tavily search failed for '{chemical_name}' in region '{region}': {e}")
         return "", ""
 
 
-async def _search_chemical_safety(chemical_name: str) -> dict:
-    combined_text, source_url = await asyncio.to_thread(_search_chemical_text_sync, chemical_name)
+async def _search_chemical_safety(chemical_name: str, region: str = "US") -> dict:
+    combined_text, source_url = await asyncio.to_thread(_search_chemical_text_sync, chemical_name, region)
     if not combined_text:
         return {}
     
@@ -64,10 +67,12 @@ async def _search_chemical_safety(chemical_name: str) -> dict:
         "pct": "float or null (OSHA volume percentage limit if any)",
         "boiling_point": "float or null (Boiling point in Celsius)",
     }
+    limit_name = "OEL (Occupational Exposure Limit)" if region.upper() in ["EU", "CA"] else "OSHA Permissible Exposure Limit (PEL) or TWA"
+    
     prompt = (
         f"Analyze the safety search results for the chemical '{chemical_name}' and extract:\n"
-        "1. The OSHA Permissible Exposure Limit (PEL) or TWA in parts per million (ppm).\n"
-        "2. The OSHA liquid volume percentage limit (if any).\n"
+        f"1. The {region} {limit_name} in parts per million (ppm).\n"
+        f"2. The {region} liquid volume percentage limit (if any).\n"
         "3. The boiling point of the chemical in Celsius.\n\n"
         f"<untrusted_search_data>\n{combined_text[:3000]}\n</untrusted_search_data>\n\n"
         f"Return ONLY valid JSON matching this schema: {json.dumps(schema)}\n"
@@ -99,47 +104,51 @@ async def _search_chemical_safety(chemical_name: str) -> dict:
         return {}
 
 
-async def check_single_chemical(name: str, conc_str: str) -> tuple[ChemicalFlag, bool]:
+async def check_single_chemical(name: str, conc_str: str, region: str = "US") -> tuple[ChemicalFlag, bool]:
     if name.lower() == "water":
         return ChemicalFlag(
             chemical_name=name,
             is_compliant=True,
             status="COMPLIANT",
             detected_concentration=conc_str,
-            regulatory_limit="No OSHA exposure limit",
-            source_citation="Water is not a regulated hazardous substance under OSHA."
+            regulatory_limit=f"No {region} exposure limit",
+            source_citation=f"Water is not a regulated hazardous substance under {region} guidelines."
         ), True
 
     is_relevant = False
     try:
-        rag_docs = query_regulations(name)
+        rag_docs = query_regulations(name, region)
         top_doc = rag_docs[:1]
         if top_doc:
             is_relevant = name.lower() in top_doc[0].lower()
     except Exception:
         top_doc = []
 
-    is_l1_cached = bool(get_osha_limits(name))
+    is_l1_cached = bool(get_osha_limits(f"{name}_{region}"))
 
     limits = {}
     if not top_doc or not is_relevant:
-        web_limits = await _search_chemical_safety(name)
-        if web_limits and (web_limits.get("ppm") is not None or web_limits.get("pct") is not None):
-            limits = web_limits
-            set_osha_limits(name, web_limits)
+        if is_l1_cached:
+            limits = get_osha_limits(f"{name}_{region}") or {}
             is_relevant = True
         else:
-            return ChemicalFlag(
-                chemical_name=name,
-                is_compliant=False,
-                status="UNKNOWN",
-                detected_concentration=conc_str,
-                regulatory_limit="Unknown: No regulatory data found",
-                source_citation=""
-            ), False
+            web_limits = await _search_chemical_safety(name, region)
+            if web_limits and (web_limits.get("ppm") is not None or web_limits.get("pct") is not None):
+                limits = web_limits
+                set_osha_limits(f"{name}_{region}", web_limits)
+                is_relevant = True
+            else:
+                return ChemicalFlag(
+                    chemical_name=name,
+                    is_compliant=False,
+                    status="UNKNOWN",
+                    detected_concentration=conc_str,
+                    regulatory_limit="Unknown: No regulatory data found",
+                    source_citation=""
+                ), False
     else:
         limits = _parse_limits(top_doc)
-        set_osha_limits(name, limits)
+        set_osha_limits(f"{name}_{region}", limits)
 
     citation = limits.get("citation", "")
     is_pct = conc_str and "%" in conc_str
@@ -150,24 +159,38 @@ async def check_single_chemical(name: str, conc_str: str) -> tuple[ChemicalFlag,
     except (AttributeError, ValueError, TypeError):
         conc_val = None
 
+    if conc_val is None and (limits.get("ppm") is not None or limits.get("pct") is not None):
+        return ChemicalFlag(
+            chemical_name=name,
+            is_compliant=False,
+            status="REVIEW_REQUIRED",
+            detected_concentration=conc_str or "Not specified",
+            regulatory_limit=(
+                f"Limit: {int(limits['ppm'])} ppm TWA" if limits.get("ppm") is not None
+                else f"Limit: {limits['pct']}% by volume"
+            ) + " — concentration missing, cannot evaluate compliance",
+            source_citation=citation
+        ), True
+
     is_compliant = True
     status = "COMPLIANT"
-    regulatory_limit = "See OSHA regulations"
+    regulatory_limit = f"See {region} regulations"
 
     if is_pct and limits.get("pct") is not None and conc_val is not None:
         regulatory_limit = f"{limits['pct']}% by volume (max)"
         is_compliant = conc_val <= limits["pct"]
         status = "COMPLIANT" if is_compliant else "NON_COMPLIANT"
     elif is_pct and limits.get("ppm") is not None:
-        regulatory_limit = f"{int(limits['ppm'])} ppm TWA (airborne limit only — liquid % requires expert review)"
-        is_compliant = True
+        regulatory_limit = f"{int(limits['ppm'])} ppm TWA (airborne limit — liquid % is not directly comparable)"
+        is_compliant = False
         status = "REVIEW_REQUIRED"
     elif is_ppm and limits.get("ppm") is not None and conc_val is not None:
         regulatory_limit = f"{int(limits['ppm'])} ppm TWA"
         is_compliant = conc_val <= limits["ppm"]
         status = "COMPLIANT" if is_compliant else "NON_COMPLIANT"
-    elif limits.get("ppm") is not None:
+    elif limits.get("ppm") is not None and conc_val is not None:
         regulatory_limit = f"{int(limits['ppm'])} ppm TWA"
+        is_compliant = conc_val <= limits["ppm"]
         status = "COMPLIANT" if is_compliant else "NON_COMPLIANT"
 
     return ChemicalFlag(
@@ -196,8 +219,8 @@ async def run_chemical_agent(state: AgentState) -> AgentState:
         )
         return state
 
-    logger.info(f"[ChemicalAgent] Evaluating {len(state.chemicals)} chemicals concurrently...")
-    tasks = [check_single_chemical(c.name, c.concentration or "") for c in state.chemicals]
+    logger.info(f"[ChemicalAgent] Evaluating {len(state.chemicals)} chemicals concurrently for region {state.region}...")
+    tasks = [check_single_chemical(c.name, c.concentration or "", state.region) for c in state.chemicals]
     results = await asyncio.gather(*tasks)
 
     flags = [res[0] for res in results]

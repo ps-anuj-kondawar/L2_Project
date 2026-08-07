@@ -76,6 +76,28 @@ async def get_pubchem_properties(cid: int) -> dict[str, float | None]:
     return props
 
 
+def _walk_sections(sections: list, target_heading: str) -> list:
+    """Recursively find all sections matching target_heading."""
+    found = []
+    for sec in sections:
+        if target_heading.lower() in sec.get("TOCHeading", "").lower():
+            found.append(sec)
+        for sub in sec.get("Section", []):
+            found.extend(_walk_sections([sub], target_heading))
+    return found
+
+
+def _extract_string_values(section: dict) -> list[str]:
+    """Pull all StringWithMarkup String values from a section's Information list."""
+    values = []
+    for info in section.get("Information", []):
+        for val in info.get("Value", {}).get("StringWithMarkup", []):
+            s = val.get("String", "")
+            if s:
+                values.append(s)
+    return values
+
+
 async def get_pubchem_ghs(cid: int) -> dict[str, Any]:
     url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=GHS+Classification"
     data = await _fetch_json(url)
@@ -89,23 +111,45 @@ async def get_pubchem_ghs(cid: int) -> dict[str, Any]:
         return ghs_info
 
     try:
-        # Traverse PubChem JSON structure for GHS section
-        text_nodes = str(data)
-        if "DANGER" in text_nodes.upper():
-            ghs_info["signal_word"] = "DANGER"
+        top_sections = data.get("Record", {}).get("Section", [])
+        ghs_sections = _walk_sections(top_sections, "GHS Classification")
+        if not ghs_sections and "Record" in data:
+            ghs_sections = [data["Record"]]
 
-        # Find pictogram codes
-        for code in ["GHS01", "GHS02", "GHS03", "GHS04", "GHS05", "GHS06", "GHS07", "GHS08", "GHS09"]:
-            if code in text_nodes:
-                ghs_info["ghs_pictogram_codes"].append(code)
+        for ghs_sec in ghs_sections:
+            for sub in ghs_sec.get("Section", []):
+                heading = sub.get("TOCHeading", "")
+                values = _extract_string_values(sub)
+                if "Signal" in heading:
+                    for v in values:
+                        if "DANGER" in v.upper():
+                            ghs_info["signal_word"] = "DANGER"
+                elif "Pictogram" in heading:
+                    for v in values:
+                        for code in ["GHS01", "GHS02", "GHS03", "GHS04", "GHS05", "GHS06", "GHS07", "GHS08", "GHS09"]:
+                            if code in v and code not in ghs_info["ghs_pictogram_codes"]:
+                                ghs_info["ghs_pictogram_codes"].append(code)
+                elif "Hazard" in heading:
+                    for v in values:
+                        if re.search(r"H\d{3}", v) and v not in ghs_info["hazard_statements"]:
+                            ghs_info["hazard_statements"].append(v)
+                elif "Precautionary" in heading:
+                    for v in values:
+                        if re.search(r"P\d{3}", v) and v not in ghs_info["precautionary_statements"]:
+                            ghs_info["precautionary_statements"].append(v)
 
-        # Extract H-codes
-        h_codes = list(set(re.findall(r"H\d{3}:?\s*[^\"'\n,]+", text_nodes)))
-        ghs_info["hazard_statements"] = h_codes[:8]
-
-        # Extract P-codes
-        p_codes = list(set(re.findall(r"P\d{3}:?\s*[^\"'\n,]+", text_nodes)))
-        ghs_info["precautionary_statements"] = p_codes[:10]
+        # Fallback to text_nodes regex if section walker found nothing specific
+        if not ghs_info["ghs_pictogram_codes"] and not ghs_info["hazard_statements"]:
+            text_nodes = str(data)
+            if "DANGER" in text_nodes.upper():
+                ghs_info["signal_word"] = "DANGER"
+            for code in ["GHS01", "GHS02", "GHS03", "GHS04", "GHS05", "GHS06", "GHS07", "GHS08", "GHS09"]:
+                if code in text_nodes and code not in ghs_info["ghs_pictogram_codes"]:
+                    ghs_info["ghs_pictogram_codes"].append(code)
+            h_codes = list(set(re.findall(r"H\d{3}:?\s*[^\"'\n,]+", text_nodes)))
+            ghs_info["hazard_statements"] = h_codes[:8]
+            p_codes = list(set(re.findall(r"P\d{3}:?\s*[^\"'\n,]+", text_nodes)))
+            ghs_info["precautionary_statements"] = p_codes[:10]
 
     except Exception as e:
         logger.warning(f"Error parsing PubChem GHS classification for CID {cid}: {e}")

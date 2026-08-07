@@ -61,7 +61,7 @@ def validate_physical_boundaries(
     for hw_name, temp in hardware:
         # Temperature above hardware melting/failure threshold (with 50% safety margin)
         hw_limit = HARDWARE_LIMITS.get(hw_name.lower(), 0)
-        if hw_limit and temp > hw_limit * 1.5:
+        if hw_limit and temp is not None and temp > hw_limit * 1.5:
             warnings.append(
                 f"'{hw_name}': {temp}°C is far above its rated max of {hw_limit}°C — "
                 f"physically implausible, please check your input."

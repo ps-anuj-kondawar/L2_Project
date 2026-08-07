@@ -129,7 +129,7 @@ from unittest.mock import patch, AsyncMock
 
 class TestHardwareAgent(unittest.IsolatedAsyncioTestCase):
 
-    @patch("src.agents.hardware_agent._mcp_check")
+    @patch("src.agents.hardware_agent._mcp_check", new_callable=AsyncMock)
     async def test_hardware_safety_borosilicate_glass_safe(self, mock_mcp):
         mock_mcp.return_value = ({
             "equipment_name": "borosilicate glass",
@@ -139,11 +139,16 @@ class TestHardwareAgent(unittest.IsolatedAsyncioTestCase):
             "status": "SAFE"
         }, True, True)
 
-        res, t_ok, tool_ok = await _mcp_check("borosilicate glass", 250.0)
-        self.assertTrue(res.get("is_safe"))
-        self.assertEqual(res.get("max_safe_temperature_celsius"), 500.0)
+        state = AgentState(
+            user_input="test hardware",
+            hardware=[ExtractedHardware(name="borosilicate glass", target_temperature_celsius=250.0)]
+        )
+        updated = await run_hardware_agent(state)
+        self.assertEqual(len(updated.hardware_flags), 1)
+        self.assertTrue(updated.hardware_flags[0].is_safe)
+        self.assertEqual(updated.hardware_flags[0].status, "SAFE")
 
-    @patch("src.agents.hardware_agent._mcp_check")
+    @patch("src.agents.hardware_agent._mcp_check", new_callable=AsyncMock)
     async def test_hardware_safety_borosilicate_glass_unsafe(self, mock_mcp):
         mock_mcp.return_value = ({
             "equipment_name": "borosilicate glass",
@@ -153,10 +158,16 @@ class TestHardwareAgent(unittest.IsolatedAsyncioTestCase):
             "status": "UNSAFE"
         }, True, True)
 
-        res, t_ok, tool_ok = await _mcp_check("borosilicate glass", 550.0)
-        self.assertFalse(res.get("is_safe"))
+        state = AgentState(
+            user_input="test hardware",
+            hardware=[ExtractedHardware(name="borosilicate glass", target_temperature_celsius=550.0)]
+        )
+        updated = await run_hardware_agent(state)
+        self.assertEqual(len(updated.hardware_flags), 1)
+        self.assertFalse(updated.hardware_flags[0].is_safe)
+        self.assertEqual(updated.hardware_flags[0].status, "UNSAFE")
 
-    @patch("src.agents.hardware_agent._mcp_check")
+    @patch("src.agents.hardware_agent._mcp_check", new_callable=AsyncMock)
     async def test_run_hardware_agent_state(self, mock_mcp):
         mock_mcp.return_value = ({
             "equipment_name": "polypropylene container",
@@ -181,8 +192,20 @@ class TestChemicalAgent(unittest.IsolatedAsyncioTestCase):
         flag, rel = await check_single_chemical("water", "90%")
         self.assertTrue(flag.is_compliant)
 
-    async def test_chemical_safety_benzene_exceeds(self):
-        flag, rel = await check_single_chemical("benzene", "5%")
+    @patch("src.agents.chemical_agent._search_chemical_safety", new_callable=AsyncMock)
+    @patch("src.agents.chemical_agent.query_regulations", return_value=[])
+    async def test_chemical_safety_benzene_exceeds(self, mock_rag, mock_web):
+        mock_web.return_value = {"pct": 1.0, "citation": "test citation"}
+        flag, rel = await check_single_chemical("benzene", "5%", region="US")
+        self.assertEqual(flag.status, "NON_COMPLIANT")
+        self.assertFalse(flag.is_compliant)
+
+    @patch("src.agents.chemical_agent._search_chemical_safety", new_callable=AsyncMock)
+    @patch("src.agents.chemical_agent.query_regulations", return_value=[])
+    async def test_missing_concentration_returns_review_required(self, mock_rag, mock_web):
+        mock_web.return_value = {"ppm": 1.0, "citation": "test citation"}
+        flag, rel = await check_single_chemical("benzene", "", region="US")
+        self.assertEqual(flag.status, "REVIEW_REQUIRED")
         self.assertFalse(flag.is_compliant)
 
     async def test_run_chemical_agent_state(self):
