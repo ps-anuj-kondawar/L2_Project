@@ -52,11 +52,11 @@ def _get_conn() -> sqlite3.Connection:
 
 def get_osha_limits(chemical: str) -> dict | None:
     try:
-        with _get_conn() as conn:
-            row = conn.execute(
-                "SELECT limits_json, created_at FROM osha_cache WHERE chemical = ?",
-                (chemical.lower().strip(),)
-            ).fetchone()
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT limits_json, created_at FROM osha_cache WHERE chemical = ?",
+            (chemical.lower().strip(),)
+        ).fetchone()
         if row and (time.time() - row[1]) < CACHE_TTL:
             return json.loads(row[0])
     except Exception as e:
@@ -79,10 +79,10 @@ def get_semantic_cache(input_text: str, intent: str = "audit", region: str = "US
     try:
         key_str = f"{input_text.strip()}|intent={intent}|region={region}|lang={language}"
         h = hashlib.sha256(key_str.encode()).hexdigest()
-        with _get_conn() as conn:
-            row = conn.execute(
-                "SELECT report_json, created_at FROM input_cache WHERE input_hash = ?", (h,)
-            ).fetchone()
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT report_json, created_at FROM input_cache WHERE input_hash = ?", (h,)
+        ).fetchone()
         if row and (time.time() - row[1]) < CACHE_TTL:
             return json.loads(row[0])
     except Exception as e:
@@ -110,10 +110,10 @@ def _hash_violations(violations: list[str]) -> str:
 def get_summary_cache(violations: list[str]) -> str | None:
     try:
         h = _hash_violations(violations)
-        with _get_conn() as conn:
-            row = conn.execute(
-                "SELECT summary, created_at FROM summary_cache WHERE violations_hash = ?", (h,)
-            ).fetchone()
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT summary, created_at FROM summary_cache WHERE violations_hash = ?", (h,)
+        ).fetchone()
         if row and (time.time() - row[1]) < CACHE_TTL:
             return row[0]
     except Exception as e:
@@ -138,10 +138,10 @@ def get_conversation_cache(message: str, history: list) -> str | None:
         key = f"{history_str}|||{message.strip()}"
         h = hashlib.sha256(key.encode()).hexdigest()
         
-        with _get_conn() as conn:
-            row = conn.execute(
-                "SELECT response, created_at FROM conversation_cache WHERE query_hash = ?", (h,)
-            ).fetchone()
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT response, created_at FROM conversation_cache WHERE query_hash = ?", (h,)
+        ).fetchone()
         if row and (time.time() - row[1]) < CACHE_TTL:
             return row[0]
     except Exception as e:
@@ -166,11 +166,11 @@ def set_conversation_cache(message: str, history: list, response: str) -> None:
 
 def get_pubchem_cache(chemical: str) -> dict | None:
     try:
-        with _get_conn() as conn:
-            row = conn.execute(
-                "SELECT pubchem_json, created_at FROM pubchem_cache WHERE chemical = ?",
-                (chemical.lower().strip(),)
-            ).fetchone()
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT pubchem_json, created_at FROM pubchem_cache WHERE chemical = ?",
+            (chemical.lower().strip(),)
+        ).fetchone()
         # 7-day TTL for PubChem cache
         if row and (time.time() - row[1]) < (60 * 60 * 24 * 7):
             return json.loads(row[0])

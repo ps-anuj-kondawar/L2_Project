@@ -187,6 +187,9 @@ async def stream_audit_endpoint(input_text: str, intent: Intent = Intent.AUDIT, 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+_SANITISE_CONTEXT_PATTERN = re.compile(r"[<>{}\[\]]")
+
+
 @app.post("/api/v1/chat")
 async def chat_endpoint(req: ChatRequest):
     """
@@ -199,7 +202,7 @@ async def chat_endpoint(req: ChatRequest):
     
     sanitised_context = None
     if req.formulation_context:
-        sanitised_context = re.sub(r"[<>{}\[\]]", "", req.formulation_context)[:500]
+        sanitised_context = _SANITISE_CONTEXT_PATTERN.sub("", req.formulation_context)[:500]
 
     try:
         res_dict = await copilot_chat(

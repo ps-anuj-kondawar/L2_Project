@@ -71,6 +71,10 @@ async def _extract_entities(text: str) -> tuple[list[ExtractedChemical], list[Ex
     return [], [], False
 
 
+# Compiled regex patterns
+_SENTENCE_SPLIT_PATTERN = re.compile(r'(?<=[.!?])\s+')
+
+
 def _evaluate_summary_quality(summary: str) -> float:
     """Return 1.0 if summary is a single sentence with no bullets or newlines, else 0.0."""
     summary = summary.strip()
@@ -78,7 +82,7 @@ def _evaluate_summary_quality(summary: str) -> float:
         return 0.0
     if any(b in summary for b in ["* ", "- ", "\u2022 "]):
         return 0.0
-    sentences = [s for s in re.split(r'(?<=[.!?])\s+', summary) if s.strip()]
+    sentences = [s for s in _SENTENCE_SPLIT_PATTERN.split(summary) if s.strip()]
     return 1.0 if len(sentences) == 1 else 0.0
 
 

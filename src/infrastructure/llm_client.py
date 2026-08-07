@@ -1,5 +1,6 @@
 import os
 import json
+import contextvars
 import httpx
 from google import genai
 from google.genai import types
@@ -13,13 +14,45 @@ GEMINI_MODEL      = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 OPENROUTER_MODEL  = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 OPENROUTER_MAX_TOKENS = int(os.getenv("OPENROUTER_MAX_TOKENS", "4096"))
 
+# ContextVar for thread-safe, request-isolated provider tracking
+_last_provider_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("_last_provider_ctx", default="Google Gemini")
 
-LAST_PROVIDER_USED = "Google Gemini"
+# Module-level lazy singleton for GenAI client reuse
+_genai_client: genai.Client | None = None
+
+
+def get_last_provider_used() -> str:
+    """Return the LLM provider used in the current context/thread."""
+    return _last_provider_ctx.get()
+
+
+# Backward-compatible property shim
+class _ProviderTracker:
+    def __str__(self) -> str:
+        return get_last_provider_used()
+
+    def __repr__(self) -> str:
+        return get_last_provider_used()
+
+
+LAST_PROVIDER_USED = _ProviderTracker()
+
+
+def _get_genai_client() -> genai.Client:
+    global _genai_client
+    if _genai_client is None:
+        use_vertex = os.getenv("VERTEX_AI", "false").lower() in ("true", "1")
+        if use_vertex:
+            project_id = os.getenv("GCP_PROJECT_ID")
+            location = os.getenv("GCP_LOCATION", "us-central1")
+            _genai_client = genai.Client(vertexai=True, project=project_id, location=location)
+        else:
+            _genai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return _genai_client
 
 
 async def chat(messages: list[dict], json_mode: bool = False) -> str:
     """Send messages to LLM and handle transient provider failures with automatic fallback."""
-    global LAST_PROVIDER_USED
     provider = LLM_PROVIDER
     gemini_key = os.getenv("GEMINI_API_KEY")
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
@@ -27,14 +60,14 @@ async def chat(messages: list[dict], json_mode: bool = False) -> str:
     if provider == "gemini" and gemini_key:
         try:
             res = await _gemini_chat(messages, json_mode)
-            LAST_PROVIDER_USED = "Google Gemini"
+            _last_provider_ctx.set("Google Gemini")
             return res
         except Exception as e:
             if openrouter_key:
                 logger.warning(f"Gemini call failed ({type(e).__name__}: {str(e)}). Falling back to OpenRouter...")
                 try:
                     res = await _openrouter_chat(messages, json_mode)
-                    LAST_PROVIDER_USED = "OpenRouter (Fallback)"
+                    _last_provider_ctx.set("OpenRouter (Fallback)")
                     return res
                 except Exception as ore:
                     logger.error(f"OpenRouter fallback also failed ({type(ore).__name__}): {ore}")
@@ -43,24 +76,18 @@ async def chat(messages: list[dict], json_mode: bool = False) -> str:
 
     if openrouter_key:
         res = await _openrouter_chat(messages, json_mode)
-        LAST_PROVIDER_USED = "OpenRouter"
+        _last_provider_ctx.set("OpenRouter")
         return res
     elif gemini_key:
         res = await _gemini_chat(messages, json_mode)
-        LAST_PROVIDER_USED = "Google Gemini"
+        _last_provider_ctx.set("Google Gemini")
         return res
     
     raise ValueError("Neither GEMINI_API_KEY nor OPENROUTER_API_KEY is configured in the environment.")
 
 
 async def _gemini_chat(messages: list[dict], json_mode: bool) -> str:
-    use_vertex = os.getenv("VERTEX_AI", "false").lower() in ("true", "1")
-    if use_vertex:
-        project_id = os.getenv("GCP_PROJECT_ID")
-        location = os.getenv("GCP_LOCATION", "us-central1")
-        client = genai.Client(vertexai=True, project=project_id, location=location)
-    else:
-        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    client = _get_genai_client()
 
     config = types.GenerateContentConfig(
         temperature=0.0,

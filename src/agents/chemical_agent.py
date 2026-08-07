@@ -13,19 +13,26 @@ from src.core.logger import logger
 from src.infrastructure.llm_client import chat as llm_chat
 
 
+# Compiled regex patterns
+_CONC_VAL_PATTERN = re.compile(r'[\d.]+')
+_PPM_LIMIT_PATTERN = re.compile(r'(\d+(?:\.\d+)?)\s*ppm\s*TWA', re.IGNORECASE)
+_PCT_LIMIT_PATTERN = re.compile(r'(\d+(?:\.\d+)?)%\s*by volume', re.IGNORECASE)
+_CITATION_PATTERN = re.compile(r'Source:\s*(.+)')
+
+
 def _parse_limits(rag_docs: list[str]) -> dict:
     combined = " ".join(rag_docs)
     limits: dict = {}
 
-    ppm_m = re.search(r'(\d+(?:\.\d+)?)\s*ppm\s*TWA', combined, re.IGNORECASE)
+    ppm_m = _PPM_LIMIT_PATTERN.search(combined)
     if ppm_m:
         limits["ppm"] = float(ppm_m.group(1))
 
-    pct_m = re.search(r'(\d+(?:\.\d+)?)%\s*by volume', combined, re.IGNORECASE)
+    pct_m = _PCT_LIMIT_PATTERN.search(combined)
     if pct_m:
         limits["pct"] = float(pct_m.group(1))
 
-    src_m = re.search(r'Source:\s*(.+)', combined)
+    src_m = _CITATION_PATTERN.search(combined)
     limits["citation"] = src_m.group(1).strip() if src_m else combined[:200]
 
     return limits
@@ -155,7 +162,7 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
     is_ppm = conc_str and "ppm" in conc_str.lower()
 
     try:
-        conc_val = float(re.search(r'[\d.]+', conc_str).group())
+        conc_val = float(_CONC_VAL_PATTERN.search(conc_str).group())
     except (AttributeError, ValueError, TypeError):
         conc_val = None
 

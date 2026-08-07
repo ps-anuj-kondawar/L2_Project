@@ -1,4 +1,3 @@
-import re
 from rapidfuzz import process, fuzz
 from src.core.constants import BOILING_POINTS_CELSIUS, HARDWARE_LIMITS
 
@@ -12,6 +11,8 @@ KNOWN_CHEMICALS = [
 
 def fuzzy_match_chemical(name: str) -> tuple[str, float]:
     """Return (best_match_name, confidence_score_0_to_100)."""
+    if len(name.strip()) < 3:
+        return name, 0.0
     result = process.extractOne(name, KNOWN_CHEMICALS, scorer=fuzz.WRatio)
     if result:
         return result[0], result[1]
