@@ -411,9 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Verdict banner
     const labels = {
-      APPROVED: 'APPROVED — Safe for Lab Use',
-      PARTIAL:  'PARTIAL — Exposure Limit Warning',
-      REJECTED: 'REJECTED — Hazardous Violation',
+      APPROVED:        'APPROVED — Safe for Lab Use',
+      REJECTED:        'REJECTED — Hazardous Violation',
+      REVIEW_REQUIRED: 'REVIEW REQUIRED — Expert Manual Review Required',
     };
     verdictBanner.className = `verdict-banner ${status} fade-in`;
     verdictBanner.innerHTML = `

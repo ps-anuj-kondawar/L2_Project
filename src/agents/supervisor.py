@@ -190,7 +190,7 @@ async def run_supervisor(
             correction_notes=[],
             boundary_warnings=["No entities extracted from user input."],
             cache_status="Extraction Failure — Early Exit",
-            llm_provider_used=_llm_client.LAST_PROVIDER_USED
+            llm_provider_used=str(_llm_client.LAST_PROVIDER_USED)
         )
         return AgentRunResult(
             compliance_report=comp_report,
@@ -440,7 +440,7 @@ async def run_supervisor(
         correction_notes=corr_notes,
         boundary_warnings=boundary_warnings,
         cache_status="Multi-Agent Pipeline Run",
-        llm_provider_used=_llm_client.LAST_PROVIDER_USED
+        llm_provider_used=str(_llm_client.LAST_PROVIDER_USED)
     )
 
     result = AgentRunResult(
