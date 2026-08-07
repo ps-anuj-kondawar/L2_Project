@@ -21,8 +21,8 @@ def _get_collection():
     return _collection
 
 
-def query_regulations(chemical_name: str) -> list[str]:
-    cached = get_osha_limits(chemical_name)
+def query_regulations(chemical_name: str, region: str = "US") -> list[str]:
+    cached = get_osha_limits(f"{chemical_name}_{region}")
     if cached:
         parts = []
         if "ppm" in cached:
@@ -34,7 +34,7 @@ def query_regulations(chemical_name: str) -> list[str]:
 
     try:
         results = _get_collection().query(
-            query_texts=[chemical_name],
+            query_texts=[f"{chemical_name} {region} regulations"],
             n_results=RAG_TOP_K
         )
         return results["documents"][0]

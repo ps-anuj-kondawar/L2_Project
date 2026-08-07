@@ -41,13 +41,20 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
     known_cas = {
         p.get("cas_number")
         for p in state.pubchem_data.values()
-        if isinstance(p, dict) and p.get("cas_number")
+        if isinstance(p, dict) and p.get("cas_number") and p.get("cas_number") != "Data not available"
     }
 
-    hallucinated_cas = [cas for cas in cas_in_sds if known_cas and cas not in known_cas]
-    if hallucinated_cas:
+    if cas_in_sds and not known_cas:
         state.reflection_passed = False
-        state.reflection_notes.append(f"Potential CAS hallucination detected in Section 3: {hallucinated_cas}")
+        state.reflection_notes.append(
+            "CAS numbers found in Section 3 but no reference PubChem CAS data was available to verify them. "
+            "Manual CAS verification required."
+        )
+    elif known_cas:
+        hallucinated_cas = [cas for cas in cas_in_sds if cas not in known_cas]
+        if hallucinated_cas:
+            state.reflection_passed = False
+            state.reflection_notes.append(f"Potential CAS hallucination detected in Section 3: {hallucinated_cas}")
 
     # Check 3: Section 3 Exposure Limit Leakage (Exposure limits belong ONLY in Section 8)
     sec3_upper = sec3_content.upper()
@@ -76,9 +83,13 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
 
     # Check 7: Section 1 Manufacturer / Supplier Info
     sec1_content = next((s.content for s in sds.sections if s.section_number == 1), "")
-    if "EMERGENCY" not in sec1_content.upper() and "CHEMTREC" not in sec1_content.upper():
+    sec1_upper = sec1_content.upper()
+    has_emergency = ("EMERGENCY" in sec1_upper or "CHEMTREC" in sec1_upper) and (
+        "RESPONSIBLE PARTY" in sec1_upper or re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", sec1_content) is not None
+    )
+    if not has_emergency:
         state.reflection_passed = False
-        state.reflection_notes.append("Section 1 missing emergency telephone hotline contact information.")
+        state.reflection_notes.append("Section 1 missing emergency telephone hotline contact information or responsible party disclaimer.")
 
     duration = int((time.time() - start_time) * 1000)
     status_str = "passed" if state.reflection_passed else f"failed ({len(state.reflection_notes)} issues)"

@@ -96,7 +96,7 @@ class TestFormulationCompliance(unittest.IsolatedAsyncioTestCase):
         mock_mcp.return_value = ({"equipment_name": "polypropylene container", "target_temperature_celsius": 60.0, "max_safe_temperature_celsius": 100.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Formula B-2: 500 ppm Acetone in water. Heat to 60C in a polypropylene container."
         res = await run_supervisor(input_text, intent="audit")
-        self.assertEqual(res.compliance_report.overall_approval_status, "PARTIAL")
+        self.assertEqual(res.compliance_report.overall_approval_status, "REJECTED")
 
     @patch("src.agents.hardware_agent._mcp_check")
     async def test_hardware_glass_thermal_exceeds(self, mock_mcp, mock_cache):
@@ -111,6 +111,12 @@ class TestFormulationCompliance(unittest.IsolatedAsyncioTestCase):
         input_text = "Water heating: 100% Water. Heat to 80C in a soda-lime glass beaker."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "APPROVED")
+
+    async def test_empty_extraction_returns_review_required(self, mock_cache):
+        with patch("src.agents.supervisor._extract_entities", new_callable=AsyncMock, return_value=([], [], False)):
+            res = await run_supervisor("invalid input text", intent="audit")
+            self.assertEqual(res.compliance_report.overall_approval_status, "REVIEW_REQUIRED")
+            self.assertIsNone(res.sds_document)
 
 
 if __name__ == "__main__":

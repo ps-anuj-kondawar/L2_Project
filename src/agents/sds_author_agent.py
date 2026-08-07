@@ -106,7 +106,7 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
         f"Authoritative Carcinogen Registry Data: {carcinogen_str}\n\n"
         f"Reflection Feedback (if any): {state.reflection_notes}\n\n"
         "STRICT SDS COMPLIANCE RULES:\n"
-        "1. Section 1 MUST list Supplier: ChemShield AI Safety Intelligence Platform, Address: 100 Safety Automation Plaza, Cambridge, MA 02142, Emergency Phone: CHEMTREC 1-800-424-9300.\n"
+        "1. Section 1 MUST begin with: DRAFT DOCUMENT — AI-GENERATED FOR REVIEW PURPOSES ONLY. NOT AN OFFICIAL SDS. Requires review by a qualified Certified Safety Professional (CSP) before operational use. Emergency Phone: CHEMTREC 1-800-424-9300 or [TO BE COMPLETED BY RESPONSIBLE PARTY].\n"
         "2. Section 3 (Composition) MUST ONLY list Chemical Name, CAS Number, and Concentration Range (% by weight or volume). DO NOT list exposure limits (PEL, TLV, TWA) in Section 3!\n"
         "3. Section 8 (Exposure Controls) MUST list exact Permissible Exposure Limits (PELs/OELs) TWA/STEL and specific chemical PPE (e.g. Viton/Butyl gloves, chemical splash goggles, fume hood, SCBA/respirator).\n"
         "4. Section 9 (Physical & Chemical Properties) MUST list chemical physical constants (boiling point, flash point, vapor pressure, solubility, appearance, odor) from PubChem data.\n"
@@ -153,7 +153,11 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
             template_str = f.read()
         
         tpl = Template(template_str)
-        pic_svgs = [load_pictogram_svg(code) for code in sds_doc.pictogram_codes if load_pictogram_svg(code)]
+        pic_svgs = []
+        for code in sds_doc.pictogram_codes:
+            svg_content = load_pictogram_svg(code)
+            if svg_content:
+                pic_svgs.append(svg_content)
         
         warning_msg = None
         if not state.reflection_passed and state.reflection_notes:

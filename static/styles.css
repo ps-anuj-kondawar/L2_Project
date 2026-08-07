@@ -360,15 +360,14 @@ main section[id^="section-"] {
 
 /* ─── RIGHT SIDEBAR: LIVE PIPELINE TELEMETRY ─────────────────────────────── */
 .app-sidebar {
-  position: sticky;
-  top: 74px;
+  /* Removed sticky positioning to scroll in sync with main column */
 }
 
 .sidebar-card {
   background: var(--surface-white);
   border: var(--border-card);
-  border-radius: var(--radius-md);
-  padding: 20px;
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
   box-shadow: var(--shadow-float);
   display: flex;
   flex-direction: column;

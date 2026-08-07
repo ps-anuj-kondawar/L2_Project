@@ -77,3 +77,4 @@ benchmark_results.json
 # Log files
 *.log
 logs/
+/.agents

@@ -13,7 +13,7 @@ class ExtractedChemical(BaseModel):
 
 class ExtractedHardware(BaseModel):
     name: str = Field(description="Name of the container or equipment")
-    target_temperature_celsius: float = Field(description="Target operating temperature in Celsius")
+    target_temperature_celsius: float | None = Field(default=None, description="Target operating temperature in Celsius")
 
 
 class ChemicalFlag(BaseModel):
@@ -47,7 +47,8 @@ class HardwareFlag(BaseModel):
     equipment_name: str = Field(
         description="The name of the container or equipment as mentioned in the user input."
     )
-    target_temperature_celsius: float = Field(
+    target_temperature_celsius: float | None = Field(
+        default=None,
         description="The target operating temperature in Celsius as stated in the user input."
     )
     max_safe_temperature_celsius: float = Field(

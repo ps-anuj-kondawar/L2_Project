@@ -1,6 +1,9 @@
 # ChemShield AI - Chemical Safety & GHS SDS Platform
 
-ChemShield AI is an enterprise multi-agent safety intelligence platform designed to automate OSHA HazCom 2012 compliance auditing, PubChem regulatory retrieval, hardware thermal compatibility checks, and 16-section GHS Safety Data Sheet (SDS) authoring for chemical formulations.
+ChemShield AI is an enterprise multi-agent safety intelligence platform designed to assist with OSHA HazCom 2012 compliance review, PubChem regulatory retrieval, hardware thermal compatibility checks, and AI-draft 16-section GHS Safety Data Sheet (SDS) authoring for chemical formulations.
+
+> [!IMPORTANT]
+> **AI Draft Status Notice**: ChemShield AI produces preliminary compliance reports and draft Safety Data Sheets intended exclusively to assist qualified Certified Safety Professionals (CSPs). Generated documents are NOT certified or official regulatory filings and require expert validation prior to operational or compliance use.
 
 ---
 
@@ -8,7 +11,7 @@ ChemShield AI is an enterprise multi-agent safety intelligence platform designed
 
 In industrial laboratories, chemical processing facilities, and research institutes, verifying formulation safety against OSHA regulatory permissible exposure limits (PELs) and equipment thermal boundaries is critical to prevent hazardous chemical exposure, thermal container failure, and regulatory non-compliance.
 
-ChemShield AI automates this complex evaluation process by combining vector search (RAG) over OSHA standards, real-time PubChem API queries, container material safety checks via the Model Context Protocol (FastMCP), and LLM reasoning to produce instantaneous compliance reports and 16-section GHS-compliant Safety Data Sheets in seconds.
+ChemShield AI automates this complex evaluation process by combining vector search (RAG) over OSHA standards, real-time PubChem API queries, container material safety checks via the Model Context Protocol (FastMCP), and LLM reasoning to produce instantaneous compliance reports and draft 16-section Safety Data Sheets in seconds.
 
 ---
 
@@ -60,7 +63,7 @@ ChemShield AI automates this complex evaluation process by combining vector sear
 2. **Intelligence Agent**: Queries PubChem PUG REST API for CAS numbers, GHS pictograms, signal words, and hazard statements.
 3. **Chemical Agent**: Queries ChromaDB vector database for OSHA Permissible Exposure Limits (PELs); falls back to Tavily web search if unindexed.
 4. **Hardware Agent**: Executes genuine Model Context Protocol (FastMCP) tool discovery and execution over stdio transport to audit container thermal limits.
-5. **SDS Authoring Agent**: Synthesizes formulation data, PubChem records, and compliance flags into a 16-section GHS SDS document with multi-region regulatory compliance (US OSHA, EU REACH/CLP, JP JIS, CA WHMIS, UK GB CLP) and multi-language output (English, Spanish, French, German, Japanese).
+5. **SDS Authoring Agent**: Synthesizes formulation data, PubChem records, and compliance flags into a draft 16-section GHS SDS document with multi-region regulatory compliance (US OSHA, EU REACH/CLP, JP JIS, CA WHMIS, UK GB CLP) and multi-language output (English, Spanish, French, German, Japanese).
 6. **Reflection Agent**: Self-correction loop that validates GHS document completeness and structure before finalization.
 
 ---
@@ -68,24 +71,36 @@ ChemShield AI automates this complex evaluation process by combining vector sear
 ## Features List
 
 - **Instant Compliance Auditing**: Evaluates chemical concentrations and container operating temperatures against OSHA regulations in ~1 second.
-- **Multi-Region & Multi-Language SDS Generation**: Generates 16-section GHS-compliant Safety Data Sheets customizable by regulatory authority (US OSHA, EU REACH, JP JIS, CA WHMIS, UK GB CLP) and output language.
+- **Multi-Region & Multi-Language SDS Generation**: Generates draft 16-section GHS Safety Data Sheets customizable by regulatory authority (US OSHA, EU REACH, JP JIS, CA WHMIS, UK GB CLP) and output language.
 - **Real-Time Execution Telemetry**: Right-side sidebar tracks entity extraction, multi-agent evaluation, verdict calculation, and SSE streaming log events in real time.
 - **Safety Copilot**: Context-aware RAG-grounded chatbot that automatically incorporates active lab session formulations into safety responses.
-- **Standalone PDF/Print Export**: Isolated print worker renders full-color 16-section GHS SDS documents ready for official printing or PDF export.
+- **Standalone PDF/Print Export**: Isolated print worker renders full-color 16-section GHS SDS documents ready for professional review and PDF export.
 - **Two-Tier SQLite Caching**: Multi-level semantic cache prevents redundant LLM and external API calls.
 
 ---
 
-## Test Suite & Verification
+## Test Suite & Benchmark Verification
 
-ChemShield AI includes a comprehensive, multi-layered unit test suite:
+ChemShield AI includes a comprehensive, multi-layered unit test suite and evaluation benchmark:
 
 - `tests/test_all_functions.py`: Verifies GHS rule functions, cache roundtrips, Hardware Agent limits, Chemical Agent evaluations, and Copilot Chat responses.
 - `tests/test_formulations.py`: Evaluates compliance auditing against diverse chemical and hardware formulation scenarios.
 - `tests/test_sds_generation.py`: Verifies PubChem REST API retrieval and 16-section GHS SDS document generation.
+
+### Running Automated Tests
+```bash
+python -m unittest discover tests -v
+```
+
+### Running Evaluation Benchmark Scaffold
+```bash
+python -m src.scripts.run_benchmark
+```
+Evaluates verdict accuracy against golden formulation scenarios in `benchmark_dataset.jsonl` and writes results to `benchmark_results.json`.
 
 ---
 
 ## Setup & Quick Start
 
 For detailed step-by-step instructions on setting up the environment, installing dependencies, populating ChromaDB, and running tests, please refer to [SETUP.md](SETUP.md).
+

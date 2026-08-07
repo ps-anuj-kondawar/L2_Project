@@ -20,7 +20,8 @@ from src.utils.validator import (
     validate_physical_boundaries,
     fuzzy_match_hardware
 )
-from src.infrastructure.llm_client import chat as llm_chat, LAST_PROVIDER_USED
+import src.infrastructure.llm_client as _llm_client
+from src.infrastructure.llm_client import chat as llm_chat
 from src.infrastructure.cache import (
     get_semantic_cache,
     set_semantic_cache,
@@ -32,10 +33,10 @@ from src.core.logger import logger
 from src.core.constants import BOILING_POINTS_CELSIUS
 
 
-async def _extract_entities(text: str) -> tuple[list[ExtractedChemical], list[ExtractedHardware]]:
+async def _extract_entities(text: str) -> tuple[list[ExtractedChemical], list[ExtractedHardware], bool]:
     schema = {
         "chemicals": [{"name": "string", "concentration": "string (e.g. '6%' or '300 ppm')"}],
-        "hardware":  [{"name": "string", "target_temperature_celsius": "float"}],
+        "hardware":  [{"name": "string", "target_temperature_celsius": "float or null"}],
     }
     prompt = (
         "Extract all chemicals, concentrations, containers, and temperatures from the text below.\n"
@@ -58,15 +59,16 @@ async def _extract_entities(text: str) -> tuple[list[ExtractedChemical], list[Ex
                 if not h.get("name"):
                     continue
                 try:
-                    temp_val = float(h.get("target_temperature_celsius") or 25.0)
+                    temp_val = h.get("target_temperature_celsius")
+                    temp_val = float(temp_val) if temp_val is not None else None
                 except (ValueError, TypeError):
-                    temp_val = 25.0
+                    temp_val = None
                 hws.append(ExtractedHardware(name=h["name"], target_temperature_celsius=temp_val))
-            return chems, hws
+            return chems, hws, True
         except Exception as e:
             logger.warning(f"[Supervisor] Entity extraction attempt {attempt + 1} failed ({type(e).__name__}): {e}")
     
-    return [], []
+    return [], [], False
 
 
 def _evaluate_summary_quality(summary: str) -> float:
@@ -103,6 +105,12 @@ async def run_supervisor(
         result = AgentRunResult.model_validate(cached)
         # If user requested SDS ('full'/'sds') but cache only has audit without SDS, upgrade entry using cached data
         if intent in ("full", "sds", "audit_and_sds") and not result.sds_html:
+            if result.compliance_report.overall_approval_status == "REVIEW_REQUIRED":
+                logger.warning("[Supervisor] Cached audit has REVIEW_REQUIRED verdict — skipping SDS upgrade.")
+                result.total_latency_seconds = round(time.time() - start_time, 3)
+                result.compliance_report.cache_status = "SQLite Semantic Cache Hit (Review Required — SDS Suppressed)"
+                return result
+
             logger.info(f"[Supervisor] Semantic cache HIT for compliance audit! Reusing audit data to generate SDS directly...")
             state = AgentState(user_input=user_input, intent=intent, region=region, language=language)
             comp = result.compliance_report
@@ -152,7 +160,43 @@ async def run_supervisor(
     state = AgentState(user_input=user_input, intent=intent, region=region, language=language)
 
     # Step 1: Entity Extraction & Validation
-    chems, hws = await _extract_entities(user_input)
+    chems, hws, extraction_ok = await _extract_entities(user_input)
+
+    if not extraction_ok or (not chems and not hws):
+        logger.error("[Supervisor] Entity extraction failed or produced no entities. Cannot produce a reliable verdict.")
+        state.add_trace(
+            agent="Supervisor",
+            action="Input Intent Parsing & Entity Extraction",
+            observation="Extraction failed or found no chemical/hardware entities. Pipeline terminated early.",
+            duration_ms=int((time.time() - start_time) * 1000),
+            status="error"
+        )
+        empty_metrics = PipelineMetrics(
+            rag_context_relevancy=0.0,
+            agent_tool_call_success_rate=0.0,
+            llm_instruction_following=0.0,
+            total_latency=round(time.time() - start_time, 3)
+        )
+        comp_report = ComplianceReport(
+            chemical_flags=[],
+            hardware_flags=[],
+            overall_approval_status="REVIEW_REQUIRED",
+            summary="Entity extraction failed or found no chemical/hardware entities. Expert manual review required.",
+            metrics=empty_metrics,
+            correction_notes=[],
+            boundary_warnings=["No entities extracted from user input."],
+            cache_status="Extraction Failure — Early Exit",
+            llm_provider_used=_llm_client.LAST_PROVIDER_USED
+        )
+        return AgentRunResult(
+            compliance_report=comp_report,
+            sds_document=None,
+            sds_html=None,
+            trace=state.trace,
+            reflection_passed=False,
+            reflection_iterations=0,
+            total_latency_seconds=round(time.time() - start_time, 3)
+        )
 
     chem_tuples = [(c.name, c.concentration or "") for c in chems]
     corrected_tuples, corr_notes = validate_and_correct_chemicals(chem_tuples)
@@ -215,7 +259,7 @@ async def run_supervisor(
             f"Completed Actions: {list(completed_actions)}.\n"
             f"Current Observations: {observations if observations else 'None'}.\n"
             f"Available Actions: {available_actions}.\n\n"
-            "Choose the next required action to take. If the user explicitly asks for an SDS or Safety Data Sheet, choose 'flag_sds_required'. Return ONLY valid JSON in format: {\"action\": \"action_name\", \"reasoning\": \"explanation\"}"
+            "Choose the next required action to take. CRITICAL RULE: DO NOT choose 'flag_sds_required' UNLESS the user explicitly asks for an SDS or Safety Data Sheet in the input. If they do not explicitly ask for it, NEVER choose it. Return ONLY valid JSON in format: {\"action\": \"action_name\", \"reasoning\": \"explanation\"}"
         )
         try:
             decision_raw = await llm_chat(
@@ -296,27 +340,38 @@ async def run_supervisor(
             for c in state.chemicals:
                 bp = BOILING_POINTS_CELSIUS.get(c.name.lower())
                 if bp is None:
-                    bp = (get_osha_limits(c.name) or {}).get("boiling_point")
+                    bp = (get_osha_limits(f"{c.name}_{region}") or {}).get("boiling_point")
                 if bp is not None and target_temp >= bp:
                     boiling_hazards.append(f"{c.name} (bp {bp}°C) heated to {target_temp}°C in {hw.name} — boiling hazard")
 
-    any_hw_review   = any(getattr(f, "status", "") == "REVIEW_REQUIRED" or not f.is_safe for f in state.hardware_flags)
-    any_chem_review = any(getattr(f, "status", "") in ("UNKNOWN", "REVIEW_REQUIRED") or not f.is_compliant for f in state.chemical_flags)
+    missing_hardware = len(state.hardware) == 0
 
-    if any_hw_review or any_chem_review:
-        state.overall_status = "REJECTED" if (any(not f.is_safe for f in state.hardware_flags) or any(not f.is_compliant for f in state.chemical_flags)) else "REVIEW_REQUIRED"
-    elif boiling_hazards:
-        state.overall_status = "PARTIAL"
+    UNSAFE_STATUSES = {"NON_COMPLIANT", "UNSAFE"}
+    REVIEW_STATUSES = {"UNKNOWN", "REVIEW_REQUIRED"}
+
+    all_chem_statuses = {f.status for f in state.chemical_flags}
+    all_hw_statuses   = {f.status for f in state.hardware_flags}
+    all_statuses      = all_chem_statuses | all_hw_statuses
+
+    if (UNSAFE_STATUSES & all_statuses) or boiling_hazards:
+        state.overall_status = "REJECTED"
+    elif (REVIEW_STATUSES & all_statuses) or missing_hardware:
+        state.overall_status = "REVIEW_REQUIRED"
     else:
         state.overall_status = "APPROVED"
 
     logger.info(f"[Supervisor] Safety Verdict calculated: '{state.overall_status}' ({len(state.chemical_flags)} chemical flags, {len(state.hardware_flags)} hardware flags)")
 
     violation_notes = (
-        [f"{f.chemical_name}: {f.detected_concentration} exceeds limit of {f.regulatory_limit}" for f in state.chemical_flags if not f.is_compliant] +
-        [f"{f.equipment_name}: {f.target_temperature_celsius}C exceeds max {f.max_safe_temperature_celsius}C" for f in state.hardware_flags if not f.is_safe] +
+        [f"{f.chemical_name}: {f.detected_concentration} exceeds limit of {f.regulatory_limit}" for f in state.chemical_flags if not f.is_compliant and getattr(f, "status", "") != "UNKNOWN"] +
+        [f"{f.chemical_name}: Missing or Unknown chemical data" for f in state.chemical_flags if getattr(f, "status", "") in ("UNKNOWN", "REVIEW_REQUIRED")] +
+        [f"{f.equipment_name}: {f.target_temperature_celsius}C exceeds max {f.max_safe_temperature_celsius}C" for f in state.hardware_flags if not f.is_safe and f.target_temperature_celsius is not None] +
+        [f"{f.equipment_name}: Target temperature is missing, but other checks proceeded." for f in state.hardware_flags if not f.is_safe and f.target_temperature_celsius is None] +
         boiling_hazards
     )
+    
+    if missing_hardware:
+        violation_notes.append("Hardware/container is missing, but chemical evaluation proceeded.")
 
     llm_summary_input = (
         "Violations found:\n" + "\n".join(f"- {n}" for n in violation_notes)
@@ -359,9 +414,9 @@ async def run_supervisor(
     rag_hits = sum(1 for f in state.chemical_flags if f.source_citation and "Web search" not in f.source_citation)
     rag_relevancy = rag_hits / len(state.chemical_flags) if state.chemical_flags else 1.0
 
-    mcp_hits = sum(1 for step in state.trace if "FastMCP" in step.action and step.status != "error")
     mcp_total = sum(1 for step in state.trace if "FastMCP" in step.action)
-    mcp_rate = mcp_hits / mcp_total if mcp_total else 1.0
+    mcp_hits = sum(1 for step in state.trace if "FastMCP" in step.action and step.status == "success")
+    mcp_rate = (mcp_hits / mcp_total) if mcp_total > 0 else 0.0
 
     llm_score = _evaluate_summary_quality(summary)
 
@@ -372,12 +427,6 @@ async def run_supervisor(
         total_latency=round(total_latency, 3)
     )
 
-    try:
-        with open("evaluation_results.json", "w", encoding="utf-8") as f:
-            json.dump(metrics.model_dump(), f, indent=4)
-    except Exception as e:
-        logger.warning(f"[Supervisor] Could not write to evaluation_results.json: {e}")
-
     comp_report = ComplianceReport(
         chemical_flags=state.chemical_flags,
         hardware_flags=state.hardware_flags,
@@ -387,7 +436,7 @@ async def run_supervisor(
         correction_notes=corr_notes,
         boundary_warnings=boundary_warnings,
         cache_status="Multi-Agent Pipeline Run",
-        llm_provider_used=LAST_PROVIDER_USED
+        llm_provider_used=_llm_client.LAST_PROVIDER_USED
     )
 
     result = AgentRunResult(
@@ -407,3 +456,4 @@ async def run_supervisor(
         logger.warning(f"[Supervisor] Could not cache result: {e}")
 
     return result
+
