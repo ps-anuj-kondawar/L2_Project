@@ -42,6 +42,10 @@ class ChemicalFlag(BaseModel):
             "The exact text chunk retrieved from ChromaDB that supports this ruling."
         )
     )
+    retrieval_source: str = Field(
+        default="unknown",
+        description="Origin of regulatory data: e.g. 'chroma_rag', 'pubchem_api', 'tavily_web', 'sqlite_cache', or 'water_standard'."
+    )
 
 class HardwareFlag(BaseModel):
     equipment_name: str = Field(

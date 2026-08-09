@@ -5,7 +5,9 @@ import time
 import threading
 from src.core.logger import logger
 
-DB_PATH   = "./cache.db"
+import os
+
+DB_PATH = ":memory:" if os.getenv("TESTING", "").lower() in ("true", "1") else os.getenv("CACHE_DB_PATH", "./cache.db")
 CACHE_TTL = 60 * 60 * 24 * 30  # 30 days in seconds
 
 _local = threading.local()

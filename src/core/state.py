@@ -23,6 +23,7 @@ class AgentState:
     reflection_passed: bool = True
     reflection_iterations: int = 0
     trace: list[TraceStep] = field(default_factory=list)
+    boundary_warnings: list[str] = field(default_factory=list)
     overall_status: str = "PENDING"
 
     def add_trace(self, agent: str, action: str, observation: str, duration_ms: int = 0, status: str = "success") -> None:

@@ -409,6 +409,10 @@ async def run_supervisor(
             logger.info(f"[Supervisor] Reflection iteration {state.reflection_iterations}: Retrying SDS Authoring Agent...")
             await run_sds_author_agent(state)
             await run_reflection_agent(state)
+
+        if not state.reflection_passed and state.overall_status == "APPROVED":
+            logger.warning("[Supervisor] SDS Reflection audit failed after max retries. Setting overall verdict to REVIEW_REQUIRED.")
+            state.overall_status = "REVIEW_REQUIRED"
     else:
         logger.info("[Supervisor] Intent is 'audit'. Skipping SDS Authoring & Reflection loop (~1s fast finish).")
 
