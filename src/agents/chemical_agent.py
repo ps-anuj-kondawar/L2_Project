@@ -45,23 +45,26 @@ _tavily_client: TavilyClient | None = TavilyClient(api_key=_TAVILY_API_KEY) if _
 def _search_chemical_text_sync(chemical_name: str, region: str = "US") -> tuple[str, str]:
     if not _tavily_client:
         return "", ""
-    try:
-        if region.upper() == "EU":
-            query = f"{chemical_name} EU CLP occupational exposure limit OEL ppm boiling point site:echa.europa.eu OR site:pubchem.ncbi.nlm.nih.gov"
-        elif region.upper() == "CA":
-            query = f"{chemical_name} WHMIS occupational exposure limit OEL ppm boiling point site:canada.ca OR site:pubchem.ncbi.nlm.nih.gov"
-        else:
-            query = f"{chemical_name} OSHA TWA permissible exposure limit ppm boiling point site:osha.gov OR site:pubchem.ncbi.nlm.nih.gov OR site:cdc.gov"
-            
-        results = _tavily_client.search(query=query, max_results=3)
-        combined_text = " ".join(
-            str(r.get("raw_content") or r.get("content") or "") for r in results.get("results", [])
-        )
-        source_url = results["results"][0]["url"] if results.get("results") else ""
-        return combined_text, source_url
-    except Exception as e:
-        logger.warning(f"[ChemicalAgent] Tavily search failed for '{chemical_name}' in region '{region}': {e}")
-        return "", ""
+    if region.upper() == "EU":
+        query = f"{chemical_name} EU CLP occupational exposure limit OEL ppm boiling point site:echa.europa.eu OR site:pubchem.ncbi.nlm.nih.gov"
+    elif region.upper() == "CA":
+        query = f"{chemical_name} WHMIS occupational exposure limit OEL ppm boiling point site:canada.ca OR site:pubchem.ncbi.nlm.nih.gov"
+    else:
+        query = f"{chemical_name} OSHA TWA permissible exposure limit ppm boiling point site:osha.gov OR site:pubchem.ncbi.nlm.nih.gov OR site:cdc.gov"
+
+    for attempt in range(2):
+        try:
+            results = _tavily_client.search(query=query, max_results=3)
+            combined_text = " ".join(
+                str(r.get("raw_content") or r.get("content") or "") for r in results.get("results", [])
+            )
+            source_url = results["results"][0]["url"] if results.get("results") else ""
+            return combined_text, source_url
+        except Exception as e:
+            logger.warning(f"[ChemicalAgent] Tavily search attempt {attempt + 1} failed for '{chemical_name}': {e}")
+            if attempt == 0:
+                time.sleep(1.0)
+    return "", ""
 
 
 async def _search_chemical_safety(chemical_name: str, region: str = "US") -> dict:
@@ -119,7 +122,8 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
             status="COMPLIANT",
             detected_concentration=conc_str,
             regulatory_limit=f"No {region} exposure limit",
-            source_citation=f"Water is not a regulated hazardous substance under {region} guidelines."
+            source_citation=f"Water is not a regulated hazardous substance under {region} guidelines.",
+            retrieval_source="water_standard"
         ), True
 
     is_relevant = False
@@ -134,16 +138,20 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
     is_l1_cached = bool(get_osha_limits(f"{name}_{region}"))
 
     limits = {}
+    retrieval_src = "chroma_rag"
+
     if not top_doc or not is_relevant:
         if is_l1_cached:
             limits = get_osha_limits(f"{name}_{region}") or {}
             is_relevant = True
+            retrieval_src = "sqlite_cache"
         else:
             web_limits = await _search_chemical_safety(name, region)
             if web_limits and (web_limits.get("ppm") is not None or web_limits.get("pct") is not None):
                 limits = web_limits
                 set_osha_limits(f"{name}_{region}", web_limits)
                 is_relevant = True
+                retrieval_src = "tavily_web"
             else:
                 return ChemicalFlag(
                     chemical_name=name,
@@ -151,11 +159,13 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
                     status="UNKNOWN",
                     detected_concentration=conc_str,
                     regulatory_limit="Unknown: No regulatory data found",
-                    source_citation=""
+                    source_citation="",
+                    retrieval_source="unindexed"
                 ), False
     else:
         limits = _parse_limits(top_doc)
         set_osha_limits(f"{name}_{region}", limits)
+        retrieval_src = "chroma_rag"
 
     citation = limits.get("citation", "")
     is_pct = conc_str and "%" in conc_str
@@ -176,7 +186,8 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
                 f"Limit: {int(limits['ppm'])} ppm TWA" if limits.get("ppm") is not None
                 else f"Limit: {limits['pct']}% by volume"
             ) + " — concentration missing, cannot evaluate compliance",
-            source_citation=citation
+            source_citation=citation,
+            retrieval_source=retrieval_src
         ), True
 
     is_compliant = True
@@ -206,7 +217,8 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
         status=status,
         detected_concentration=conc_str,
         regulatory_limit=regulatory_limit,
-        source_citation=citation
+        source_citation=citation,
+        retrieval_source=retrieval_src
     ), is_relevant
 
 

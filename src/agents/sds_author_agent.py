@@ -173,8 +173,9 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
                 pic_svgs.append(svg_content)
         
         warning_notes = []
-        if state.boundary_warnings:
-            warning_notes.extend(state.boundary_warnings)
+        bw = getattr(state, "boundary_warnings", [])
+        if bw:
+            warning_notes.extend(bw)
         if state.reflection_notes:
             warning_notes.extend(state.reflection_notes)
 
