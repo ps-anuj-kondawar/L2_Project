@@ -1,4 +1,3 @@
-import asyncio
 import re
 import time
 import json
@@ -30,16 +29,59 @@ from src.infrastructure.cache import (
     get_osha_limits
 )
 from src.core.logger import logger
-from src.core.constants import BOILING_POINTS_CELSIUS
+from src.core.constants import BOILING_POINTS_CELSIUS, CAS_TO_NAME
+
+# Compiled regex: CAS Registry Number format (e.g., 71-43-2, 7664-93-9)
+_CAS_NUMBER_PATTERN = re.compile(r'^\d{2,7}-\d{2}-\d$')
+
+
+def _resolve_cas_to_name(raw_name: str) -> str:
+    """
+    Resolve a CAS Registry Number to its IUPAC/common chemical name.
+
+    If the input matches CAS number format (e.g., '71-43-2'), look it up in
+    the CAS_TO_NAME mapping derived from MASTER_CHEMICAL_DATABASE.
+    If not found in the master map, return the original string unchanged.
+
+    This allows users to enter CAS numbers directly in the input field —
+    they will be silently resolved to the chemical name for processing.
+
+    Args:
+        raw_name: Chemical name string that may be a CAS number.
+
+    Returns:
+        Resolved chemical name, or original string if no CAS match.
+    """
+    stripped = raw_name.strip()
+    if _CAS_NUMBER_PATTERN.match(stripped):
+        resolved = CAS_TO_NAME.get(stripped)
+        if resolved:
+            logger.info(f"[Supervisor] CAS number '{stripped}' resolved to '{resolved}'")
+            return resolved.title()
+    return raw_name
 
 
 async def _extract_entities(text: str) -> tuple[list[ExtractedChemical], list[ExtractedHardware], bool]:
+    """
+    Extract chemical entities and hardware items from unstructured formulation text.
+
+    Uses a bounded JSON repair loop (max 2 attempts) to handle LLM output failures.
+    After extraction, resolves any CAS numbers in chemical names to proper names.
+
+    Args:
+        text: Raw formulation input text from the user.
+
+    Returns:
+        Tuple of (chemicals, hardware, extraction_ok).
+        extraction_ok is False if both attempts failed.
+    """
     schema = {
-        "chemicals": [{"name": "string", "concentration": "string (e.g. '6%' or '300 ppm')"}],
+        "chemicals": [{"name": "string (chemical name or CAS number)", "concentration": "string (e.g. '6%' or '300 ppm') or null"}],
         "hardware":  [{"name": "string", "target_temperature_celsius": "float or null"}],
     }
     prompt = (
-        "Extract all chemicals, concentrations, containers, and temperatures from the text below.\n"
+        "Extract all chemicals (by name OR CAS number), concentrations, containers, and temperatures from the text below.\n"
+        "If a CAS number is given (e.g., 71-43-2), use it as the chemical name — it will be resolved automatically.\n"
         f"Return ONLY valid JSON matching this schema: {json.dumps(schema)}\n\nText:\n{text}"
     )
     # Bounded repair loop for JSON parsing
@@ -53,7 +95,13 @@ async def _extract_entities(text: str) -> tuple[list[ExtractedChemical], list[Ex
                 json_mode=True,
             )
             data = json.loads(raw)
-            chems = [ExtractedChemical(name=c["name"], concentration=c.get("concentration")) for c in data.get("chemicals", []) if c.get("name")]
+            chems = []
+            for c in data.get("chemicals", []):
+                if not c.get("name"):
+                    continue
+                # Resolve CAS numbers to chemical names (edge case: user inputs CAS directly)
+                resolved_name = _resolve_cas_to_name(c["name"])
+                chems.append(ExtractedChemical(name=resolved_name, concentration=c.get("concentration")))
             hws = []
             for h in data.get("hardware", []):
                 if not h.get("name"):
@@ -67,7 +115,7 @@ async def _extract_entities(text: str) -> tuple[list[ExtractedChemical], list[Ex
             return chems, hws, True
         except Exception as e:
             logger.warning(f"[Supervisor] Entity extraction attempt {attempt + 1} failed ({type(e).__name__}): {e}")
-    
+
     return [], [], False
 
 
@@ -315,7 +363,8 @@ async def run_supervisor(
             agent="Supervisor",
             action="Safety Guardrail Override (Chemical Check)",
             observation="Executed chemical compliance check required by safety policy after model finished early.",
-            status="warning"
+            status="warning",
+            action_source="guardrail_override"
         )
     if "hardware" not in completed_actions and state.hardware:
         logger.info("[Supervisor Guardrail] Model skipped hardware compliance check; executing guardrail check.")
@@ -324,7 +373,8 @@ async def run_supervisor(
             agent="Supervisor",
             action="Safety Guardrail Override (Hardware Check)",
             observation="Executed hardware compatibility check required by safety policy after model finished early.",
-            status="warning"
+            status="warning",
+            action_source="guardrail_override"
         )
     if "pubchem" not in completed_actions and state.chemicals:
         logger.info("[Supervisor Guardrail] Model skipped PubChem query; executing guardrail query.")
@@ -333,7 +383,8 @@ async def run_supervisor(
             agent="Supervisor",
             action="Safety Guardrail Override (PubChem Fetch)",
             observation="Fetched PubChem intelligence data required for complete audit after model finished early.",
-            status="warning"
+            status="warning",
+            action_source="guardrail_override"
         )
 
     # Step 3: Compute Safety Verdict (Fail-Closed)
@@ -422,9 +473,16 @@ async def run_supervisor(
     rag_hits = sum(1 for f in state.chemical_flags if f.source_citation and "Web search" not in f.source_citation)
     rag_relevancy = rag_hits / len(state.chemical_flags) if state.chemical_flags else 1.0
 
-    mcp_total = sum(1 for step in state.trace if "FastMCP" in step.action)
-    mcp_hits = sum(1 for step in state.trace if "FastMCP" in step.action and step.status == "success")
-    mcp_rate = (mcp_hits / mcp_total) if mcp_total > 0 else 0.0
+    # BUG-6 fix: Count MCP transport successes from hardware_flags data (not trace.status strings).
+    # A hardware check that finds UNSAFE equipment is a SUCCESSFUL MCP transport call.
+    # Only count hardware checks that had actual MCP transport attempts.
+    mcp_attempts = sum(1 for step in state.trace if "FastMCP" in step.action)
+    # MCP success = transport reached the server (even if domain result was UNSAFE/domain error)
+    mcp_successes = sum(
+        1 for step in state.trace
+        if "FastMCP" in step.action and step.status in ("success", "warning")
+    )
+    mcp_rate = (mcp_successes / mcp_attempts) if mcp_attempts > 0 else 0.0
 
     llm_score = _evaluate_summary_quality(summary)
 

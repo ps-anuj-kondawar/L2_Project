@@ -160,11 +160,12 @@ async def _mcp_check(hw_name: str, temp: float | None, session: ClientSession | 
     if session is not None:
         try:
             return await _execute_with_session(session)
-        except Exception as e:
+        except (Exception, BaseException) as e:
             logger.warning(f"[HardwareAgent] Single session execution failed for '{hw_name}': {e}. Falling back to stdio process.")
 
+    env_vars = dict(os.environ)
     server_params = StdioServerParameters(
-        command=sys.executable, args=[MCP_SERVER_SCRIPT], env=None
+        command=sys.executable, args=[MCP_SERVER_SCRIPT], env=env_vars
     )
     logger.info(f"[HardwareAgent] MCP tool discovery & lookup for '{hw_name}' at {temp}C...")
     try:
@@ -172,8 +173,23 @@ async def _mcp_check(hw_name: str, temp: float | None, session: ClientSession | 
             async with ClientSession(r, w) as sess:
                 await sess.initialize()
                 return await _execute_with_session(sess)
-    except Exception as e:
-        logger.error(f"[HardwareAgent] MCP transport error for '{hw_name}' ({type(e).__name__}): {e}")
+    except (Exception, BaseException) as e:
+        logger.error(f"[HardwareAgent] MCP transport error for '{hw_name}' ({type(e).__name__}): {e}. Trying local limit lookup...")
+        from src.core.constants import HARDWARE_LIMITS
+        from src.utils.validator import fuzzy_match_hardware
+        key = fuzzy_match_hardware(hw_name.lower().strip())
+        if key in HARDWARE_LIMITS:
+            max_temp = HARDWARE_LIMITS[key]
+            is_safe = (temp is not None) and (temp <= max_temp)
+            logger.info(f"[HardwareAgent] Local limit lookup SUCCESS for '{hw_name}': max={max_temp}C, safe={is_safe}")
+            return {
+                "equipment_name": hw_name,
+                "target_temperature_celsius": temp,
+                "max_safe_temperature_celsius": max_temp,
+                "is_safe": is_safe,
+                "status": "SAFE" if is_safe else "UNSAFE",
+                "error": None
+            }, True, True
         return {
             "equipment_name": hw_name,
             "target_temperature_celsius": temp,
@@ -205,8 +221,9 @@ async def run_hardware_agent(state: AgentState) -> AgentState:
     results = []
 
     # Try single shared MCP session for batch evaluation
+    env_vars = dict(os.environ)
     server_params = StdioServerParameters(
-        command=sys.executable, args=[MCP_SERVER_SCRIPT], env=None
+        command=sys.executable, args=[MCP_SERVER_SCRIPT], env=env_vars
     )
     try:
         async with stdio_client(server_params) as (r, w):
@@ -214,7 +231,7 @@ async def run_hardware_agent(state: AgentState) -> AgentState:
                 await session.initialize()
                 tasks = [_mcp_check(h.name, h.target_temperature_celsius, session=session) for h in state.hardware]
                 results = await asyncio.gather(*tasks)
-    except Exception as e:
+    except (Exception, BaseException) as e:
         logger.warning(f"[HardwareAgent] Shared MCP session failed ({e}); evaluating per-call fallback.")
         tasks = [_mcp_check(h.name, h.target_temperature_celsius) for h in state.hardware]
         results = await asyncio.gather(*tasks)

@@ -6,8 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Holds the last audited formulation + audit summary so the Copilot can
   // reference it without the user re-typing anything.
   const session = {
-    formulation:  null,   // raw text of last run formulation
-    auditSummary: null,   // one-line summary from last compliance report
+    formulation:  null,
+    auditSummary: null,
   };
 
   // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -17,6 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const globalRunBtn      = document.getElementById('global-run-btn');
   const runStatusChip     = document.getElementById('run-status-chip');
   const scenariosRow      = document.getElementById('scenarios-row');
+  const charCount         = document.getElementById('char-count');
+  const generateSdsBtn    = document.getElementById('generate-sds-btn');
+  const onboardingBanner  = document.getElementById('onboarding-banner');
+  const onboardingClose   = document.getElementById('onboarding-close-btn');
+  const retrievalLegend   = document.getElementById('retrieval-legend');
+  const flagsHelpText     = document.getElementById('flags-help-text');
 
   // Audit section
   const metricsGrid       = document.getElementById('metrics-grid');
@@ -104,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         partial_toluene:   { input: 'Formulation: 500 ppm Toluene, 800 ppm Acetone. Heated to 90°C in a polypropylene container.' },
         chloroform_web:    { input: 'Formula X: 50% Chloroform. Store at 25°C in a borosilicate glass beaker.' },
         typo_auto_correct: { input: 'Note: Contains 6% benzen. Heated to 50°C in a borosilicate glass beaker.' },
+        cas_number_input:  { input: 'Formulation: CAS 71-43-2 at 0.5 ppm in 99.9% Water. Store at 25°C in a polypropylene container.' },
       };
     });
 
@@ -113,6 +120,66 @@ document.addEventListener('DOMContentLoaded', () => {
       chip.classList.add('active');
       const key = chip.dataset.key;
       if (scenarioMap[key]) formulationInput.value = scenarioMap[key].input;
+      updateCharCount();
+    });
+  });
+
+  // ── Char counter ─────────────────────────────────────────────────────────
+  const MAX_CHARS = 2000;
+  function updateCharCount() {
+    const len = formulationInput.value.length;
+    if (charCount) {
+      charCount.textContent = `${len} / ${MAX_CHARS}`;
+      charCount.style.color = len > MAX_CHARS * 0.9 ? 'var(--rejected)' : 'var(--text-muted)';
+    }
+  }
+  if (formulationInput) formulationInput.addEventListener('input', updateCharCount);
+
+  // ── Onboarding banner dismiss ────────────────────────────────────────────
+  const ONBOARDING_KEY = 'chemshield_onboarding_dismissed';
+  if (onboardingBanner) {
+    if (localStorage.getItem(ONBOARDING_KEY)) {
+      onboardingBanner.style.display = 'none';
+    }
+    if (onboardingClose) {
+      onboardingClose.addEventListener('click', () => {
+        onboardingBanner.style.display = 'none';
+        localStorage.setItem(ONBOARDING_KEY, '1');
+      });
+    }
+  }
+
+  // ── Generate SDS shortcut button ─────────────────────────────────────────
+  if (generateSdsBtn) {
+    generateSdsBtn.addEventListener('click', () => {
+      const text = formulationInput ? formulationInput.value.trim() : '';
+      if (!text) {
+        if (formulationInput) {
+          formulationInput.style.borderColor = 'var(--rejected)';
+          formulationInput.focus();
+          setTimeout(() => { formulationInput.style.borderColor = ''; }, 1800);
+        }
+        return;
+      }
+      runAudit(text, 'full');
+      activateSection('sds');
+    });
+  }
+
+  // ── Copilot suggestion chips ──────────────────────────────────────────────
+  const suggestionChips = document.querySelectorAll('.suggestion-chip');
+  const chatInputEl = document.getElementById('chat-input');
+  suggestionChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (chatInputEl) {
+        chatInputEl.value = chip.dataset.q || '';
+        chatInputEl.focus();
+        // Auto-send if copilot section is active
+        const copilotSection = document.getElementById('section-copilot');
+        if (copilotSection && !copilotSection.classList.contains('hidden')) {
+          document.getElementById('send-chat-btn')?.click();
+        }
+      }
     });
   });
 
@@ -383,10 +450,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Fallback audit runner using standard POST API
   function runAuditFallback(text, intent = 'audit') {
     appendLog(logStream, '[INFO] Retrying via direct API request...');
+    const regionEl = document.getElementById('select-region');
+    const langEl   = document.getElementById('select-language');
+    const region   = regionEl ? regionEl.value : 'US';
+    const language = langEl   ? langEl.value   : 'en';
     fetch('/api/v1/audit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_input: text, intent: intent })
+      body: JSON.stringify({ user_input: text, intent: intent, region: region, language: language })
     })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(data => {
@@ -457,13 +528,16 @@ document.addEventListener('DOMContentLoaded', () => {
     flagsContainer.innerHTML = '';
 
     report.chemical_flags.forEach(c => {
+      const srcBadge = _retrievalSourceLabel(c.retrieval_source);
       flagsContainer.appendChild(buildFlagRow(
         'CHEM',
         c.chemical_name,
         `Limit: ${c.regulatory_limit}`,
-        c.detected_concentration || 'N/A',
-        c.is_compliant ? 'APPROVED' : 'REJECTED',
-        c.is_compliant ? 'Compliant' : 'Non-Compliant'
+        c.detected_concentration || 'Not specified',
+        c.is_compliant ? 'APPROVED' : (c.status === 'REVIEW_REQUIRED' ? 'PARTIAL' : 'REJECTED'),
+        c.is_compliant ? 'Compliant' : (c.status === 'REVIEW_REQUIRED' ? 'Review Required' : 'Non-Compliant'),
+        srcBadge,
+        c.source_citation || ''
       ));
     });
 
@@ -471,12 +545,18 @@ document.addEventListener('DOMContentLoaded', () => {
       flagsContainer.appendChild(buildFlagRow(
         'HW',
         h.equipment_name,
-        `Max safe: ${h.max_safe_temperature_celsius}°C`,
-        `${h.target_temperature_celsius}°C`,
-        h.is_safe ? 'APPROVED' : 'REJECTED',
-        h.is_safe ? 'Safe' : 'Unsafe'
+        `Max safe: ${h.max_safe_temperature_celsius != null ? h.max_safe_temperature_celsius + '°C' : 'Unknown'}`,
+        h.target_temperature_celsius != null ? `${h.target_temperature_celsius}°C` : 'Not specified',
+        h.is_safe ? 'APPROVED' : (h.status === 'REVIEW_REQUIRED' ? 'PARTIAL' : 'REJECTED'),
+        h.is_safe ? 'Safe' : (h.status === 'REVIEW_REQUIRED' ? 'Review Required' : 'Unsafe'),
+        'FastMCP',
+        ''
       ));
     });
+
+    if (report.chemical_flags.length > 0 || report.hardware_flags.length > 0) {
+      if (retrievalLegend) retrievalLegend.classList.remove('hidden');
+    }
 
     // ── SDS
     if (result.sds_html) {
@@ -554,12 +634,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const chipClass = step.status === 'success' ? 'chip-APPROVED'
                         : step.status === 'warning' ? 'chip-PARTIAL'
                         : 'chip-REJECTED';
+        const sourceTag = step.action_source === 'guardrail_override'
+          ? '<span class="trace-guardrail-badge" title="Safety guardrail enforced this step — the AI would have skipped it">Guardrail</span>'
+          : '';
         const row = document.createElement('div');
         row.className = 'trace-row fade-in';
         row.innerHTML = `
           <span class="trace-dot ${dotClass}"></span>
           <span class="trace-agent">${esc(step.agent)}</span>
-          <span class="trace-action">${esc(step.action)}</span>
+          <span class="trace-action">${esc(step.action)} ${sourceTag}</span>
           <span class="trace-obs">${esc(step.observation)}</span>
           <span class="trace-dur">${step.duration_ms}ms</span>
           <span class="status-chip ${chipClass}" style="font-size:10px;padding:3px 9px;">${esc(step.status)}</span>
@@ -585,19 +668,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Build a single flag row ────────────────────────────────────────────────
-  function buildFlagRow(typeTag, name, limitLabel, concValue, chipClass, chipLabel) {
+  function buildFlagRow(typeTag, name, limitLabel, concValue, chipClass, chipLabel, sourceBadge, citation) {
     const row = document.createElement('div');
     row.className = 'flag-row';
+    const sourceHtml = sourceBadge
+      ? `<span class="flag-source-badge" title="Regulatory data retrieved from: ${esc(sourceBadge)}">${esc(sourceBadge)}</span>`
+      : '';
+    const citationHtml = citation
+      ? `<div class="flag-citation" title="${esc(citation)}">${esc(citation.length > 80 ? citation.slice(0, 77) + '...' : citation)}</div>`
+      : '';
     row.innerHTML = `
       <div class="flag-row-left">
         <span class="flag-type-tag">${esc(typeTag)}</span>
         <div>
           <div class="flag-name">${esc(name)}</div>
           <div class="flag-limit">${esc(limitLabel)}</div>
+          ${citationHtml}
         </div>
       </div>
-      <span class="flag-conc">${esc(concValue)}</span>
-      <span class="status-chip chip-${chipClass}">${esc(chipLabel)}</span>
+      <div class="flag-row-right">
+        ${sourceHtml}
+        <span class="flag-conc" title="Detected concentration in your formulation">${esc(concValue)}</span>
+        <span class="status-chip chip-${chipClass}">${esc(chipLabel)}</span>
+      </div>
     `;
     return row;
   }
@@ -726,6 +819,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function removeTypingIndicator(id) {
     const el = document.getElementById(id);
     if (el) el.remove();
+  }
+
+  // ── Retrieval source → human label mapping ───────────────────────────────
+  function _retrievalSourceLabel(source) {
+    const map = {
+      master_db:      'Master DB',
+      chroma_rag:     'OSHA RAG',
+      sqlite_cache:   'Cache',
+      gemini_knowledge: 'Gemini AI',
+      tavily_web:     'Web Search',
+      water_standard: 'Standard',
+      unindexed:      'Unindexed',
+    };
+    return map[source] || (source ? String(source) : '');
   }
 
   // ── HTML escape ───────────────────────────────────────────────────────────

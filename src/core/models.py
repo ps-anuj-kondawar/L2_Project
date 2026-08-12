@@ -24,8 +24,8 @@ class ChemicalFlag(BaseModel):
         description="True if detected concentration is within regulatory limits, False otherwise."
     )
     status: str = Field(
-        default="COMPLIANT",
-        description="'COMPLIANT', 'NON_COMPLIANT', 'UNKNOWN', or 'REVIEW_REQUIRED'"
+        default="REVIEW_REQUIRED",
+        description="'COMPLIANT', 'NON_COMPLIANT', 'UNKNOWN', or 'REVIEW_REQUIRED'. Defaults to REVIEW_REQUIRED (fail-closed)."
     )
     detected_concentration: str | None = Field(
         default=None,
@@ -64,8 +64,8 @@ class HardwareFlag(BaseModel):
         )
     )
     status: str = Field(
-        default="SAFE",
-        description="'SAFE', 'UNSAFE', 'UNKNOWN', or 'REVIEW_REQUIRED'"
+        default="REVIEW_REQUIRED",
+        description="'SAFE', 'UNSAFE', 'UNKNOWN', or 'REVIEW_REQUIRED'. Defaults to REVIEW_REQUIRED (fail-closed)."
     )
 
 class PipelineMetrics(BaseModel):
@@ -157,6 +157,10 @@ class TraceStep(BaseModel):
     timestamp_ms: int
     duration_ms: int = 0
     status: str = "success"
+    action_source: str = Field(
+        default="model_selected",
+        description="'model_selected' if the ReAct loop chose this action, 'guardrail_override' if the safety guardrail forced it."
+    )
 
 
 class AgentRunResult(BaseModel):

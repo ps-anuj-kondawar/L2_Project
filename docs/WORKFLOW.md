@@ -115,3 +115,64 @@ The right-hand sidebar telemetry panel in [index.html](file:///c:/L2_Project/sta
 2. **ChromaDB Vector Unindexed**: Dispatches live Tavily Web Search API query to retrieve OSHA exposure limit documentation from official web sources (`osha.gov`, `pubchem.ncbi.nlm.nih.gov`, `cdc.gov`).
 3. **FastMCP Server Disconnect**: Falls back to in-memory local hardware limit table (`HARDWARE_LIMITS`).
 4. **LLM Generation Timeout**: Falls back to structured rule-based section templates to ensure the user always receives a valid, schema-compliant 16-section SDS document.
+
+---
+
+## 6. Chemical Compliance Decision Tree
+
+The following flowchart describes the exact decision path for each chemical evaluated by the `ChemicalComplianceAgent`:
+
+```
+For each chemical in formulation:
+  │
+  ├─ Is chemical == "water"?
+  │    YES → Status: COMPLIANT (no regulatory limit for water)
+  │    NO  ↓
+  │
+  ├─ Check MASTER_CHEMICAL_DATABASE (Tier 1)
+  │    HIT → use hardcoded PEL/PCT (authoritative, not overridable by cache)
+  │    MISS ↓
+  │
+  ├─ Query ChromaDB RAG (Tier 2)
+  │    HIT (chemical name in chunk) → parse PEL/PCT, cache result
+  │    MISS ↓
+  │
+  ├─ Check SQLite cache (Tier 3)
+  │    HIT (ppm != None) → use cached limit
+  │    MISS or ppm=None (stale entry) ↓
+  │
+  ├─ Gemini API chemical knowledge lookup (Tier 4)
+  │    HIT → parse confirmed limit, cache result
+  │    MISS ↓
+  │
+  ├─ Tavily web search + LLM extraction (Tier 5)
+  │    HIT → parse extracted limit, cache result
+  │    MISS ↓
+  │
+  └─ Status: UNKNOWN (fail-closed — no data = not safe)
+```
+
+**Compliance evaluation after data retrieval:**
+
+```
+If limit found:
+  │
+  ├─ Concentration missing or empty?
+  │    YES → Status: REVIEW_REQUIRED (cannot evaluate without a concentration)
+  │
+  ├─ Input unit = "%" AND limit unit = "%"?
+  │    YES → Direct comparison → COMPLIANT / NON_COMPLIANT
+  │
+  ├─ Input unit = "%" AND only ppm limit available?
+  │    YES → Status: REVIEW_REQUIRED (units incompatible)
+  │          ppm = airborne exposure; % = liquid formulation — cannot compare directly.
+  │          A CSP must determine airborne exposure at the use conditions.
+  │
+  ├─ Input unit = "ppm" AND limit unit = "ppm"?
+  │    YES → Direct comparison → COMPLIANT / NON_COMPLIANT
+  │
+  └─ Unitless concentration AND ppm limit?
+       YES → Assume same unit → COMPLIANT / NON_COMPLIANT (best effort, flagged)
+```
+
+**Key principle**: Fail-closed defaults apply at every step. A positive evidence of compliance is required to emit `COMPLIANT`. `UNKNOWN` is never interpreted as safe.
