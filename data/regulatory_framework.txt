@@ -1,9 +1,12 @@
 Benzene
-Benzene (C6H6) is classified as a Group 1 human carcinogen by OSHA.
+Benzene (C6H6) is classified as a Group 1 human carcinogen by IARC and OSHA.
 Permissible Exposure Limit (PEL): 1 ppm TWA (8 hour time weighted average).
-Short Term Exposure Limit (STEL): 5 ppm over 15 minutes.
+Short-Term Exposure Limit (STEL): 5 ppm over 15 minutes.
+Action Level: 0.5 ppm (triggers mandatory air monitoring and medical surveillance).
 Use in open formulation systems is heavily restricted. Maximum allowable
 concentration in open system laboratory formulations is 0.1% by volume.
+NTP: Known to be a Human Carcinogen (15th Report on Carcinogens).
+California Proposition 65 WARNING: known to cause cancer and reproductive harm.
 Source: OSHA 29 CFR 1910.1028.
 
 Acetone
@@ -17,9 +20,9 @@ Source: OSHA 29 CFR 1910.1000 Table Z-1.
 Toluene
 Toluene (C7H8) is a flammable aromatic solvent and a reproductive hazard.
 Permissible Exposure Limit (PEL): 200 ppm TWA.
-ShortTerm Exposure Limit (STEL): 300 ppm ceiling.
-Prolonged exposure may cause central nervous system effects.
-Pregnant workers must avoid exposure.
+Short-Term Exposure Limit (STEL): 300 ppm ceiling value (must not be exceeded).
+Prolonged exposure may cause central nervous system effects and reproductive harm.
+Pregnant workers must avoid exposure due to documented fetal harm.
 Source: OSHA 29 CFR 1910.1000 Table Z-2.
 
 Methanol
@@ -37,10 +40,13 @@ Low toxicity compared to methanol. Eye and skin irritant at high concentrations.
 Source: OSHA 29 CFR 1910.1000 Table Z-1.
 
 Chloroform
-Chloroform (CHCl3) is a trihalomethane solvent and suspected human carcinogen.
-Permissible Exposure Limit (PEL): 50 ppm Ceiling limit.
+Chloroform (CHCl3) is a trihalomethane solvent and probable human carcinogen.
+Permissible Exposure Limit (PEL): 50 ppm Ceiling limit (must not be exceeded at any time).
+IARC Group 2A: Probably Carcinogenic to Humans.
+NTP: Reasonably Anticipated to be a Human Carcinogen (15th Report on Carcinogens).
 Causes central nervous system depression, liver damage, and kidney failure.
 Must be handled strictly inside a certified chemical fume hood with Viton gloves.
+California Proposition 65 WARNING: known to cause cancer.
 Source: OSHA 29 CFR 1910.1000 Table Z-2.
 
 Formaldehyde
@@ -72,7 +78,10 @@ Source: OSHA 29 CFR 1910.1000 Table Z-1.
 Dichloromethane
 Dichloromethane (CH2Cl2), also known as Methylene Chloride, is a volatile halogenated solvent.
 Permissible Exposure Limit (PEL): 25 ppm TWA.
-Short-Term Exposure Limit (STEL): 125 ppm. Suspected carcinogen and cardiac hazard.
+Short-Term Exposure Limit (STEL): 125 ppm. Action Level: 12.5 ppm.
+IARC Group 2A: Probably Carcinogenic to Humans. NTP: Reasonably Anticipated to be a Human Carcinogen.
+Cardiac sensitization hazard. Metabolised to carbon monoxide in vivo.
+California Proposition 65 WARNING: known to cause cancer.
 Source: OSHA 29 CFR 1910.1052.
 
 Diethyl Ether
@@ -88,9 +97,12 @@ Causes severe tissue burns and permanent eye damage. Face shield and rubber apro
 Source: OSHA 29 CFR 1910.1000 Table Z-1.
 
 Sulfuric Acid
-Sulfuric Acid (H2SO4) is a strong corrosive mineral acid and oxidiser.
-Permissible Exposure Limit (PEL): 1 mg/m3 TWA.
-Causes severe skin burns and eye damage. Acid mist is classified as a carcinogen.
+Sulfuric Acid (H2SO4) is a strong corrosive mineral acid and oxidizer.
+Permissible Exposure Limit (PEL): 1 mg/m3 TWA (airborne acid mist).
+Causes severe skin burns and eye damage. Do not add water to concentrated acid.
+IARC Group 1: Acid mists from sulfuric acid are classified as carcinogenic to humans.
+NTP: Known to be a Human Carcinogen (15th Report on Carcinogens, acid mist).
+California Proposition 65 WARNING: acid mist known to cause cancer.
 Source: OSHA 29 CFR 1910.1000 Table Z-1.
 
 Hydrochloric Acid
@@ -119,9 +131,12 @@ Source: OSHA 29 CFR 1910.1000 Table Z-1.
 
 Dimethyl Sulfoxide
 Dimethyl Sulfoxide (C2H6OS), DMSO, is a powerful dipolar aprotic solvent.
-Permissible Exposure Limit (PEL): 250 ppm TWA (WEEL).
-Rapidly penetrates human skin, transporting dissolved solutes directly into bloodstream.
-Source: AIHA WEEL / OSHA Hazard Communication.
+OSHA has not established a Permissible Exposure Limit (PEL) for DMSO.
+ACGIH has not established a Threshold Limit Value (TLV) for DMSO.
+DMSO rapidly penetrates human skin and transports dissolved solutes directly into the bloodstream,
+making it particularly dangerous when used as a vehicle for toxic or pharmacological compounds.
+Handle with nitrile gloves. Avoid skin contact with contaminated solutions.
+Source: AIHA WEEL / OSHA Hazard Communication. No 29 CFR 1910.1000 PEL established.
 
 Tetrahydrofuran
 Tetrahydrofuran (C4H8O), THF, is a flammable cyclic ether solvent.

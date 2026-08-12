@@ -1,4 +1,5 @@
 import asyncio
+import re
 import time
 
 from src.infrastructure.llm_client import chat as llm_chat
@@ -9,7 +10,11 @@ from src.infrastructure.cache import (
 )
 from src.agents.chemical_agent import _search_chemical_safety
 from src.utils.validator import KNOWN_CHEMICALS
+from src.core.constants import CAS_TO_NAME
 from src.core.logger import logger
+
+# Detect CAS Registry Numbers typed into the chat (e.g., "71-43-2", "7664-93-9")
+_CAS_IN_TEXT_PATTERN = re.compile(r'\b(\d{2,7}-\d{2}-\d)\b')
 
 
 async def _get_single_chemical_context(name: str) -> str:
@@ -66,7 +71,7 @@ async def copilot_chat(
             "cache_hit": True
         }
 
-    # Detect chemicals mentioned in message and formulation context — single pass
+    # Detect chemicals by name from message and formulation context
     seen: set[str] = set()
     detected_chems: list[str] = []
     combined_lower = message.lower() + (" " + formulation_context.lower() if formulation_context else "")
@@ -74,6 +79,15 @@ async def copilot_chat(
         if chem.lower() in combined_lower and chem not in seen:
             seen.add(chem)
             detected_chems.append(chem)
+
+    # Also resolve any CAS numbers typed directly in the message (e.g., "71-43-2")
+    for cas_match in _CAS_IN_TEXT_PATTERN.finditer(message):
+        cas_num = cas_match.group(1)
+        resolved_name = CAS_TO_NAME.get(cas_num)
+        if resolved_name and resolved_name not in seen:
+            logger.info(f"[Copilot] CAS number '{cas_num}' in chat resolved to '{resolved_name}'")
+            seen.add(resolved_name)
+            detected_chems.append(resolved_name.title())
 
     safety_context = ""
     grounding_score = 1.0

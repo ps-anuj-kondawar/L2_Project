@@ -26,13 +26,14 @@ class AgentState:
     boundary_warnings: list[str] = field(default_factory=list)
     overall_status: str = "PENDING"
 
-    def add_trace(self, agent: str, action: str, observation: str, duration_ms: int = 0, status: str = "success") -> None:
+    def add_trace(self, agent: str, action: str, observation: str, duration_ms: int = 0, status: str = "success", action_source: str = "model_selected") -> None:
         step = TraceStep(
             agent=agent,
             action=action,
             observation=observation,
             timestamp_ms=int(time.time() * 1000),
             duration_ms=duration_ms,
-            status=status
+            status=status,
+            action_source=action_source
         )
         self.trace.append(step)

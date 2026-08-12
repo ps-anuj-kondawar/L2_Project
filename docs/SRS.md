@@ -1,7 +1,7 @@
 # Software Requirements Specification (SRS)
 
 **Project Name:** ChemShield AI - Chemical Safety & Multi-Region GHS SDS Platform  
-**Specification Version:** 3.0.0 (Final Capstone Submission Document)  
+**Specification Version:** 3.1.0 (Revised — Regulatory Remediation Release)  
 **Document Status:** Approved & Implemented  
 
 ---
@@ -55,15 +55,20 @@ The system decouples compliance auditing from document synthesis using an **Inte
 ### FR-1: Formulation Input & Entity Extraction
 *   **FR-1.1**: The system shall accept unstructured plain text inputs describing laboratory formulations (chemicals, volumes/masses, containers, and operating temperatures).
 *   **FR-1.2**: The extraction engine shall isolate entities and utilize `rapidfuzz` to automatically correct spelling variations in chemical names (e.g., `benzen` to `Benzene`) and hardware types.
+*   **FR-1.3**: The system shall accept CAS Registry Numbers (e.g., `71-43-2`) as chemical identifiers. Recognized CAS numbers shall be resolved to chemical names using the `CAS_TO_NAME` mapping derived from `MASTER_CHEMICAL_DATABASE` before any downstream processing.
+*   **FR-1.4**: The copilot shall detect CAS numbers mentioned in free-text chat messages and resolve them to chemical names for regulatory context lookup.
 
-### FR-2: Regulatory RAG & Web Search Fallback
-*   **FR-2.1**: The `ChemicalAgent` shall query a local ChromaDB instance for OSHA safety regulations.
-*   **FR-2.2**: The retrieval pipeline must generate embeddings dynamically and restrict retrieved context to the top 5 chunks.
-*   **FR-2.3**: If the retrieved documents do not surpass the semantic similarity threshold, the agent shall automatically fallback to a live web search via the Tavily API.
+### FR-2: Regulatory Data Retrieval — 5-Tier Strategy
+*   **FR-2.1**: The `ChemicalAgent` shall evaluate all chemicals against a prioritized 5-tier retrieval strategy (in order): `MASTER_CHEMICAL_DATABASE` (hardcoded authoritative limits) → ChromaDB RAG → SQLite semantic cache → Gemini API direct knowledge lookup → Tavily live web search.
+*   **FR-2.2**: The `MASTER_CHEMICAL_DATABASE` in `src/core/constants.py` shall be treated as the single authoritative source for regulatory limits and shall always take precedence over the SQLite cache. Cache entries with `ppm=None` shall be treated as cache misses (not as evidence of no limit existing).
+*   **FR-2.3**: The retrieval pipeline must restrict retrieved RAG context to the top 5 chunks.
+*   **FR-2.4**: The Gemini API chemical lookup shall be queried before Tavily web search for common OSHA-regulated chemicals. The prompt shall instruct the model to return `null` rather than fabricate uncertain values.
+*   **FR-2.5**: Unit semantics must be preserved: `ppm` (airborne exposure) and `%` (liquid formulation) are different physical quantities and must never be directly compared. When units are incompatible, the system shall return `REVIEW_REQUIRED`, not `NON_COMPLIANT`.
 
 ### FR-3: MCP Hardware Tool Integration
 *   **FR-3.1**: The system shall initialize an independent Model Context Protocol (MCP) server.
 *   **FR-3.2**: The `HardwareAgent` shall establish a connection to the MCP server and pass the extracted hardware limits for validation, returning a definitive boolean flag for thermal safety.
+*   **FR-3.3**: The MCP server shall perform normalized key matching (lowercase + substring match) to handle equipment naming variations (e.g., 'Borosilicate Glass Beaker' matches 'borosilicate glass beaker').
 
 ### FR-4: Intent-Driven Pipeline Execution
 *   **FR-4.1 (Fast Path)**: If the user requests an `audit`, the pipeline shall bypass SDS document generation, calculate the safety verdict (`APPROVED`, `PARTIAL`, `REJECTED`), and return results in ~1-2 seconds.
@@ -78,6 +83,11 @@ The system decouples compliance auditing from document synthesis using an **Inte
 ### FR-6: Offline Evaluation Benchmarking
 *   **FR-6.1**: A dedicated benchmarking pipeline shall read from `benchmark_dataset.jsonl`.
 *   **FR-6.2**: The benchmark suite shall use `ragas` connected to Google Gemini to evaluate the RAG pipeline's context retrieval accuracy and the LLM's faithfulness, dumping results to `evaluation_results.json`.
+
+### FR-7: Fail-Closed Safety Behavior
+*   **FR-7.1**: The system shall be fail-closed: a chemical or hardware item with no evaluable regulatory data shall default to `REVIEW_REQUIRED` status — never `COMPLIANT` or `SAFE`.
+*   **FR-7.2**: Pydantic model defaults for `ChemicalFlag.status` and `HardwareFlag.status` shall be `REVIEW_REQUIRED`, not `COMPLIANT` or `SAFE`.
+*   **FR-7.3**: The safety guardrail layer in the Supervisor shall enforce that chemical compliance, hardware compatibility, and PubChem intelligence checks always execute — even if the ReAct loop model selects `finish_audit` prematurely. Guardrail-enforced steps shall be tagged with `action_source: 'guardrail_override'` in the execution trace.
 
 ---
 
@@ -101,7 +111,7 @@ The system decouples compliance auditing from document synthesis using an **Inte
 | Endpoint | Method | Payload | Description |
 |---|---|---|---|
 | `/` | GET | None | Serves the main Single Page Application |
-| `/api/v1/stream` | GET | `input_text`, `intent` | SSE Stream for real-time progress and trace logs |
-| `/api/v1/audit` | POST | `{user_input, intent}` | Returns the full `AgentRunResult` and JSON metrics |
-| `/api/v1/chat` | POST | `{message, history}` | Context-aware Safety Copilot chat endpoint |
+| `/api/v1/stream` | GET | `input_text`, `intent`, `region`, `language` | SSE Stream for real-time progress and trace logs |
+| `/api/v1/audit` | POST | `{user_input, intent, region, language}` | Returns the full `AgentRunResult` and JSON metrics |
+| `/api/v1/chat` | POST | `{message, history, formulation_context}` | Context-aware Safety Copilot chat endpoint |
 | `/api/v1/examples` | GET | None | Fetches pre-configured test scenarios for the UI |

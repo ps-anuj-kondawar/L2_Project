@@ -1,20 +1,34 @@
-chromadb>=1.0.0
-pydantic>=2.9.0
-streamlit>=1.36.0
-google-genai>=1.0.0
-python-dotenv>=1.0.0
-requests>=2.32.0
-tavily-python>=0.5.0
-rapidfuzz>=3.9.0
-mcp>=1.0.0
-sentence-transformers>=2.7.0
+# ChemShield AI — Enterprise Dependencies
+
+# --- Core Web Framework & Server ---
 fastapi>=0.110.0
 uvicorn[standard]>=0.28.0
 jinja2>=3.1.0
-audioop-lts; python_version >= '3.13'
+httpx>=0.27.0
+python-dotenv>=1.0.0
+pydantic>=2.9.0
+
+# --- AI & Multi-Agent Framework ---
+google-genai>=1.0.0
+langchain-google-genai
+mcp>=1.0.0
+fastmcp>=0.1.0
+tavily-python>=0.5.0
+rapidfuzz>=3.9.0
+requests>=2.32.0
+nest_asyncio
+
+# --- RAG Vector DB & Embeddings ---
+chromadb>=1.0.0
+sentence-transformers>=2.7.0
 huggingface_hub>=1.23.0
+
+# --- Document Generation & Exports ---
+reportlab>=4.0.0
+
+# --- Benchmarking & Evaluation (RAGAS / SWE-Bench style) ---
 ragas>=0.1.9
 datasets>=2.19.0
-nest_asyncio
-langchain-google-genai
-httpx>=0.27.0
+
+# --- Python 3.13+ Backports ---
+audioop-lts; python_version >= '3.13'

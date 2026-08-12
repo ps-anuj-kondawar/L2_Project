@@ -4,14 +4,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChemShield AI — Chemical Safety &amp; SDS Platform</title>
+  <title>ChemShield AI — Chemical Safety & SDS Platform</title>
   <meta name="description"
-    content="Automated OSHA compliance auditing, GHS SDS authoring, and multi agent safety intelligence for chemical formulations." />
+    content="Automated OSHA compliance auditing, GHS SDS authoring, and multi-agent safety intelligence for chemical formulations. Supports chemical names, CAS numbers, and plain lab notes." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" />
-  <link rel="stylesheet" href="/static/styles.css?v=2.0.1" />
+  <link rel="stylesheet" href="/static/styles.css?v=2.1.0" />
 </head>
 
 <body>
@@ -21,13 +21,13 @@
     <span class="nav-brand">ChemShield AI</span>
     <div class="nav-links" role="tablist">
       <button class="nav-link active" id="nav-audit" data-section="audit" role="tab" aria-selected="true"
-        aria-controls="section-audit">Compliance Audit</button>
+        aria-controls="section-audit" title="Run OSHA compliance checks on your formulation">Compliance Audit</button>
       <button class="nav-link" id="nav-sds" data-section="sds" role="tab" aria-selected="false"
-        aria-controls="section-sds">GHS SDS</button>
+        aria-controls="section-sds" title="Generate a 16-section GHS Safety Data Sheet document">GHS SDS</button>
       <button class="nav-link" id="nav-trace" data-section="trace" role="tab" aria-selected="false"
-        aria-controls="section-trace">Agent Trace</button>
+        aria-controls="section-trace" title="See exactly what each AI agent did, step by step">Agent Trace</button>
       <button class="nav-link" id="nav-copilot" data-section="copilot" role="tab" aria-selected="false"
-        aria-controls="section-copilot">Safety Copilot</button>
+        aria-controls="section-copilot" title="Ask the AI safety expert anything about your chemicals">Safety Copilot</button>
     </div>
     <button class="btn-pill-primary" id="global-run-btn" aria-label="Run safety audit">
       Run Audit <span class="arrow-icon">&#8594;</span>
@@ -48,26 +48,48 @@
             <span class="status-chip chip-NEUTRAL" id="run-status-chip">Ready</span>
           </div>
 
+          <!-- How-to onboarding banner -->
+          <div class="onboarding-banner" id="onboarding-banner" role="note" aria-label="Quick start guide">
+            <div class="onboarding-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div class="onboarding-content">
+              <div class="onboarding-title">What can I enter here?</div>
+              <ul class="onboarding-list">
+                <li>A lab formulation note — <em>"94% Water, 6% Benzene. Heated to 120°C in a soda-lime glass beaker."</em></li>
+                <li>Chemical name with concentration — <em>"500 ppm Toluene in ethanol solution"</em></li>
+                <li>A CAS Registry Number — <em>"CAS 71-43-2 at 0.5 ppm in water"</em> (auto-resolved to Benzene)</li>
+                <li>Just a chemical name — <em>"Chloroform"</em> (concentration will be flagged for manual review)</li>
+                <li>Or use one of the <strong>example scenarios</strong> below to see a demonstration</li>
+              </ul>
+            </div>
+            <button class="onboarding-close-btn" id="onboarding-close-btn" aria-label="Dismiss quick start guide" title="Dismiss">&#10005;</button>
+          </div>
+
           <div class="options-row" style="display: flex; gap: 12px; margin-bottom: 12px;">
             <div style="flex: 1;">
               <label for="select-region"
-                style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px;">Jurisdiction
-                / Region</label>
+                style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px;"
+                title="Select the regulatory jurisdiction for exposure limits and SDS format">Jurisdiction / Region</label>
               <select id="select-region" class="select-input"
-                style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 12px; font-weight: 500;">
-                <option value="US" selected>US - OSHA HazCom 2012</option>
-                <option value="EU">EU - REACH / CLP Regulation</option>
-                <option value="JP">JP - JIS Z 7253 / ISHL</option>
-                <option value="CA">CA - WHMIS 2015</option>
-                <option value="GB">UK - GB CLP / HSE</option>
+                style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 12px; font-weight: 500;"
+                title="Regulatory jurisdiction affects which exposure limits are applied">
+                <option value="US" selected>US — OSHA HazCom 2012 (29 CFR 1910)</option>
+                <option value="EU">EU — REACH / CLP Regulation (ECHA)</option>
+                <option value="JP">JP — JIS Z 7253 / ISHL</option>
+                <option value="CA">CA — WHMIS 2015 (Health Canada)</option>
+                <option value="GB">UK — GB CLP / HSE COSHH</option>
               </select>
             </div>
             <div style="flex: 1;">
               <label for="select-language"
-                style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px;">SDS
-                Output Language</label>
+                style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px;"
+                title="Language for the generated GHS Safety Data Sheet document">SDS Output Language</label>
               <select id="select-language" class="select-input"
-                style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 12px; font-weight: 500;">
+                style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 12px; font-weight: 500;"
+                title="The Safety Data Sheet will be generated in this language">
                 <option value="en" selected>English</option>
                 <option value="es">Spanish (Español)</option>
                 <option value="fr">French (Français)</option>
@@ -77,22 +99,46 @@
             </div>
           </div>
 
+          <!-- Example scenario chips -->
+          <div class="scenarios-label">Try an example:</div>
           <div class="scenarios-row" id="scenarios-row" role="group" aria-label="Quick scenario presets">
-            <button class="scenario-chip" data-key="rejected_benzene">Benzene Rejected</button>
-            <button class="scenario-chip" data-key="approved_ipa">IPA Approved</button>
-            <button class="scenario-chip" data-key="partial_toluene">Toluene Partial</button>
-            <button class="scenario-chip" data-key="chloroform_web">Chloroform Web</button>
-            <button class="scenario-chip" data-key="typo_auto_correct">Typo Correction</button>
+            <button class="scenario-chip" data-key="rejected_benzene" title="Benzene at 6% — exceeds the 0.1% OSHA liquid limit and soda-lime glass can't handle 120°C">
+              Benzene &gt; Limit
+            </button>
+            <button class="scenario-chip" data-key="approved_ipa" title="Isopropanol at 70% in a safe container — should pass all OSHA checks">
+              IPA Approved
+            </button>
+            <button class="scenario-chip" data-key="partial_toluene" title="Toluene + Acetone vapors — ppm concentrations with potential heating hazard">
+              Toluene + Acetone
+            </button>
+            <button class="scenario-chip" data-key="chloroform_web" title="Chloroform — triggers web search fallback for ceiling limit check">
+              Chloroform Lookup
+            </button>
+            <button class="scenario-chip" data-key="typo_auto_correct" title="'benzen' is a typo — the system auto-corrects to Benzene via fuzzy matching">
+              Typo Correction
+            </button>
+            <button class="scenario-chip" data-key="cas_number_input" title="Enter a CAS Registry Number — the system resolves it to the chemical name automatically">
+              CAS# Input
+            </button>
           </div>
 
-          <textarea class="input-area" id="formulation-input"
-            placeholder="Enter formulation note, e.g. Formula B: 94% Water, 6% Benzene. Heat to 120°C in a soda lime glass beaker."
-            aria-label="Formulation input" rows="3"></textarea>
+          <div class="textarea-wrapper">
+            <textarea class="input-area" id="formulation-input"
+              placeholder="Describe your formulation — e.g.:&#10;• &quot;94% Water, 6% Benzene. Heated to 120°C in a soda-lime glass beaker.&quot;&#10;• &quot;500 ppm Toluene solution. Store at 25°C in polypropylene container.&quot;&#10;• CAS 71-43-2 at 0.5% in water — use a CAS number and we resolve it automatically&#10;• Or just type a chemical name: &quot;Chloroform&quot; to get its safety profile"
+              aria-label="Formulation input" rows="6"></textarea>
+            <div class="char-count" id="char-count" aria-live="polite">0 / 2000</div>
+          </div>
 
-          <button class="btn-pill-primary btn-full" id="card-run-btn" aria-label="Run audit">
-            <span id="card-run-label">Run Compliance Audit</span>
-            <span class="arrow-icon" id="card-run-arrow">&#8594;</span>
-          </button>
+          <div class="input-action-row">
+            <button class="btn-pill-primary btn-full" id="card-run-btn" aria-label="Run compliance audit on the formulation above">
+              <span id="card-run-label">Run Compliance Audit</span>
+              <span class="arrow-icon" id="card-run-arrow">&#8594;</span>
+            </button>
+            <button class="btn-pill-secondary btn-sm" id="generate-sds-btn" aria-label="Generate full 16-section GHS SDS document"
+              title="Generates a full 16-section GHS Safety Data Sheet PDF for this formulation">
+              Generate SDS
+            </button>
+          </div>
         </div>
 
         <!-- 2. COMPLIANCE AUDIT SECTION -->
@@ -100,25 +146,25 @@
           <div id="verdict-banner" class="hidden"></div>
 
           <div class="metrics-grid hidden" id="metrics-grid">
-            <div class="metric-card">
+            <div class="metric-card" title="Total wall-clock time for the full AI agent pipeline to complete">
               <div class="metric-label">Total Latency</div>
               <div class="metric-value" id="mv-latency">--</div>
               <div class="metric-sub">Pipeline execution time</div>
             </div>
-            <div class="metric-card">
+            <div class="metric-card" title="Percentage of chemicals that had relevant OSHA data in the regulatory database">
               <div class="metric-label">RAG Relevancy</div>
               <div class="metric-value" id="mv-rag">--</div>
-              <div class="metric-sub">OSHA vector precision</div>
+              <div class="metric-sub">OSHA data database hit rate</div>
             </div>
-            <div class="metric-card">
+            <div class="metric-card" title="Rate at which the hardware safety tool (FastMCP) successfully reached the MCP server">
               <div class="metric-label">Tool Success</div>
               <div class="metric-value" id="mv-tools">--</div>
-              <div class="metric-sub">MCP call success rate</div>
+              <div class="metric-sub">MCP tool transport success rate</div>
             </div>
-            <div class="metric-card">
+            <div class="metric-card" title="How many times the SDS document was re-generated to pass the 9-point reflection audit">
               <div class="metric-label">Reflection</div>
               <div class="metric-value" id="mv-reflect">--</div>
-              <div class="metric-sub">Self correction loops</div>
+              <div class="metric-sub">Self-correction loops completed</div>
             </div>
           </div>
 
@@ -134,10 +180,24 @@
                 Executive Summary &amp; Compliance Audit
               </span>
             </div>
-            <div class="summary-box" id="summary-text">Run an audit to see the compliance summary.</div>
+            <div class="summary-box" id="summary-text">Run an audit to see the OSHA compliance summary.</div>
             <span class="label-cap">Detected Chemical &amp; Hardware Flags</span>
+            <div class="flags-help-text" id="flags-help-text">
+              Each flag shows the detected chemical or equipment, the regulatory limit applied,
+              the detected value, and whether it passes or fails the safety check.
+            </div>
             <div class="flags-container" id="flags-container">
-              <div class="empty-state">No flags yet. Run an audit to see results.</div>
+              <div class="empty-state">No flags yet. Enter a formulation above and click <strong>Run Compliance Audit</strong>.</div>
+            </div>
+
+            <!-- Retrieval source legend -->
+            <div class="retrieval-legend hidden" id="retrieval-legend">
+              <span class="legend-title">Data sources used:</span>
+              <span class="legend-item"><span class="legend-dot master"></span> Master DB</span>
+              <span class="legend-item"><span class="legend-dot rag"></span> OSHA RAG</span>
+              <span class="legend-item"><span class="legend-dot gemini"></span> Gemini AI</span>
+              <span class="legend-item"><span class="legend-dot web"></span> Web Search</span>
+              <span class="legend-item"><span class="legend-dot cache"></span> Cache</span>
             </div>
 
             <!-- AUDIT EVALUATION METRICS BAR -->
@@ -167,30 +227,52 @@
                 GHS SDS Document Preview
               </span>
               <div style="display: flex; gap: 8px;">
-                <button class="btn-pill-secondary btn-sm" id="print-sds-btn">Download PDF Document</button>
+                <button class="btn-pill-secondary btn-sm" id="print-sds-btn"
+                  title="Download the full 16-section GHS Safety Data Sheet as a PDF">Download PDF Document</button>
+              </div>
+            </div>
+
+            <div class="sds-info-row">
+              <div class="sds-info-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                GHS Rev.9 Compliant
+              </div>
+              <div class="sds-info-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                16 Mandatory Sections
+              </div>
+              <div class="sds-info-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                  <path d="M9 11l3 3L22 4"/>
+                </svg>
+                9-Point Reflection Audit
               </div>
             </div>
 
             <div class="metrics-grid metrics-grid-3col">
-              <div class="metric-card">
+              <div class="metric-card" title="Number of GHS sections generated out of the required 16">
                 <div class="metric-label">GHS Sections</div>
                 <div class="metric-value" id="sds-mv-sections">--</div>
                 <div class="metric-sub">of 16 required</div>
               </div>
-              <div class="metric-card">
-                <div class="metric-label">Reflection</div>
+              <div class="metric-card" title="Whether all 9 automated quality checks passed: CAS numbers, PPE, UN transport, regulatory refs, emergency contacts, physical properties, carcinogen disclosure">
+                <div class="metric-label">Reflection Audit</div>
                 <div class="metric-value" id="sds-mv-reflect">--</div>
-                <div class="metric-sub">GHS validation</div>
+                <div class="metric-sub">9-point quality gate</div>
               </div>
-              <div class="metric-card">
+              <div class="metric-card" title="Number of times the SDS was re-authored to pass the reflection quality checks">
                 <div class="metric-label">Iterations</div>
                 <div class="metric-value" id="sds-mv-iters">--</div>
-                <div class="metric-sub">Self correction loops</div>
+                <div class="metric-sub">Self-correction loops</div>
               </div>
             </div>
 
             <div class="sds-viewer" id="sds-html-wrapper">
-              <p class="empty-state">Run an audit to generate a GHS compliant SDS document.</p>
+              <p class="empty-state">Run an audit to generate a GHS compliant SDS document, or click <strong>Generate SDS</strong> in the input panel.</p>
             </div>
 
             <!-- SDS EVALUATION METRICS BAR -->
@@ -198,10 +280,8 @@
               <div class="eval-bar-title">Evaluation Metrics</div>
               <div class="eval-bar-items">
                 <div class="eval-item"><span>GHS Sections:</span> <strong id="eval-sds-sections">16 / 16</strong></div>
-                <div class="eval-item"><span>Reflection Audit:</span> <strong id="eval-sds-reflect">PASSED</strong>
-                </div>
-                <div class="eval-item"><span>Signal Word Precision:</span> <strong id="eval-sds-precision">100%</strong>
-                </div>
+                <div class="eval-item"><span>Reflection Audit:</span> <strong id="eval-sds-reflect">PASSED</strong></div>
+                <div class="eval-item"><span>Signal Word Precision:</span> <strong id="eval-sds-precision">100%</strong></div>
                 <div class="eval-item"><span>Authoring Latency:</span> <strong id="eval-sds-latency">--</strong></div>
               </div>
             </div>
@@ -220,25 +300,33 @@
                 </span>
                 Agent Execution Trace
               </span>
+              <span class="status-chip chip-NEUTRAL" style="font-size:10px;"
+                title="This shows the exact sequence of AI agent actions taken to evaluate your formulation">How the AI decided</span>
+            </div>
+
+            <div class="trace-help-text">
+              This trace shows the exact sequence of AI agent actions taken. Each step shows which agent ran,
+              what action it took, what it found, how long it took, and whether it was chosen autonomously
+              by the AI (<em>model selected</em>) or enforced by the safety guardrail (<em>guardrail override</em>).
             </div>
 
             <div class="metrics-grid">
-              <div class="metric-card">
+              <div class="metric-card" title="Total number of agent steps in the pipeline execution">
                 <div class="metric-label">Total Steps</div>
                 <div class="metric-value" id="trace-mv-steps">--</div>
                 <div class="metric-sub">Agent actions taken</div>
               </div>
-              <div class="metric-card">
+              <div class="metric-card" title="Number of distinct agent types invoked (Chemical, Hardware, PubChem, SDS, Reflection)">
                 <div class="metric-label">Agents Used</div>
                 <div class="metric-value" id="trace-mv-agents">--</div>
-                <div class="metric-sub">Distinct agents invoked</div>
+                <div class="metric-sub">Distinct agent types</div>
               </div>
-              <div class="metric-card">
+              <div class="metric-card" title="Percentage of steps that completed without error">
                 <div class="metric-label">Success Rate</div>
                 <div class="metric-value" id="trace-mv-success">--</div>
                 <div class="metric-sub">Steps completed cleanly</div>
               </div>
-              <div class="metric-card">
+              <div class="metric-card" title="Average time spent per agent step">
                 <div class="metric-label">Avg Step Time</div>
                 <div class="metric-value" id="trace-mv-avg">--</div>
                 <div class="metric-sub">Mean duration per step</div>
@@ -263,21 +351,38 @@
                 </span>
                 Safety Copilot
               </span>
-              <span class="status-chip chip-NEUTRAL">RAG + Web Grounded</span>
+              <span class="status-chip chip-NEUTRAL"
+                title="Answers are grounded in OSHA regulations from the vector database and live web search — not generic AI responses">RAG + Web Grounded</span>
             </div>
 
             <div id="context-banner" class="context-banner hidden">
               <span class="context-banner-label">Active Formulation</span>
               <span class="context-banner-text" id="context-banner-text"></span>
-              <button class="context-clear-btn" id="context-clear-btn">Clear Context</button>
+              <button class="context-clear-btn" id="context-clear-btn" title="Clear the formulation context — the copilot will no longer reference the last audited formulation">Clear Context</button>
+            </div>
+
+            <!-- Copilot suggestion chips -->
+            <div class="copilot-suggestions" id="copilot-suggestions" role="group" aria-label="Suggested questions">
+              <div class="suggestions-label">Try asking:</div>
+              <button class="suggestion-chip" data-q="What is the OSHA exposure limit for benzene?">What is benzene's OSHA limit?</button>
+              <button class="suggestion-chip" data-q="What PPE is required when handling chloroform?">PPE for chloroform?</button>
+              <button class="suggestion-chip" data-q="What does CAS number 71-43-2 mean?">What is CAS 71-43-2?</button>
+              <button class="suggestion-chip" data-q="Is toluene a carcinogen?">Is toluene a carcinogen?</button>
+              <button class="suggestion-chip" data-q="What is the difference between ppm and percent concentration?">ppm vs % — what's the difference?</button>
+              <button class="suggestion-chip" data-q="What storage requirements apply to flammable solvents?">Flammable solvent storage?</button>
             </div>
 
             <div class="chat-area" id="chat-box" aria-live="polite" aria-label="Copilot chat messages">
               <div class="chat-msg bot">
                 <div class="chat-bubble">
-                  Hello. I am your lab safety copilot, grounded in OSHA regulations and PubChem data.
-                  Run an audit first and I will automatically be aware of your active formulation —
-                  you can then ask me follow up questions without retyping chemicals.
+                  Hello. I am your lab safety copilot, grounded in OSHA regulations, GHS standards, and PubChem chemical data.<br><br>
+                  You can ask me about:<br>
+                  &bull; Exposure limits (PEL, STEL, ceiling values)<br>
+                  &bull; Chemical hazard classifications (GHS, IARC carcinogen status)<br>
+                  &bull; PPE requirements and storage rules<br>
+                  &bull; CAS numbers — just type a CAS like <strong>71-43-2</strong> and I will identify the chemical<br>
+                  &bull; What your audit results mean<br><br>
+                  Run an audit first and I will automatically know your active formulation — no need to retype chemicals.
                 </div>
                 <div class="chat-meta">ChemShield AI</div>
               </div>
@@ -285,7 +390,8 @@
 
             <div class="chat-input-row">
               <input class="chat-field" type="text" id="chat-input"
-                placeholder="Ask about exposure limits, storage, PPE requirements..." aria-label="Chat message input" />
+                placeholder="Ask anything — e.g. 'What is the PEL for chloroform?' or type a CAS number like 71-43-2"
+                aria-label="Chat message input" />
               <button class="btn-pill-primary" id="send-chat-btn" aria-label="Send message">Send</button>
             </div>
           </div>
@@ -301,7 +407,7 @@
               <span class="live-dot" id="sidebar-live-dot"></span>
               Live Pipeline Execution
             </span>
-            <button class="btn-pill-secondary btn-sm" id="clear-logs-btn">Clear</button>
+            <button class="btn-pill-secondary btn-sm" id="clear-logs-btn" title="Clear the execution log stream">Clear</button>
           </div>
 
           <!-- Live Stage Tracker -->
@@ -319,7 +425,7 @@
               <span class="step-num">2</span>
               <div class="step-info">
                 <span class="step-name">Multi-Agent Audit</span>
-                <span class="step-sub" id="sub-audit">OSHA RAG, PubChem &amp; MCP</span>
+                <span class="step-sub" id="sub-audit">OSHA RAG + PubChem + MCP hardware</span>
               </div>
               <span class="step-badge" id="badge-audit">--</span>
             </div>
@@ -328,7 +434,7 @@
               <span class="step-num">3</span>
               <div class="step-info">
                 <span class="step-name">Safety Verdict &amp; Summary</span>
-                <span class="step-sub" id="sub-verdict">Calculating OSHA compliance</span>
+                <span class="step-sub" id="sub-verdict">Calculating OSHA compliance verdict</span>
               </div>
               <span class="step-badge" id="badge-verdict">--</span>
             </div>
@@ -337,7 +443,7 @@
               <span class="step-num">4</span>
               <div class="step-info">
                 <span class="step-name">GHS SDS Authoring</span>
-                <span class="step-sub" id="sub-sds">16-section document synthesis</span>
+                <span class="step-sub" id="sub-sds">16-section document + 9-point reflection</span>
               </div>
               <span class="step-badge" id="badge-sds">--</span>
             </div>
@@ -364,7 +470,9 @@
       <a href="#" aria-label="Security Compliance">Security Compliance</a>
       <a href="/docs" aria-label="API Documentation" target="_blank" rel="noopener">API Docs</a>
     </div>
-    <span class="footer-copy" id="footer-copy-text">&#169; 2026 ChemShield AI. Powered by Gemini / OpenRouter.</span>
+    <span class="footer-copy" id="footer-copy-text">&#169; 2026 ChemShield AI. Powered by Gemini / OpenRouter.
+      <span class="footer-disclaimer">For research and demonstration purposes only. Not a substitute for professional CSP review.</span>
+    </span>
   </footer>
 
   <!-- SDS POPUP WORKER MODAL OVERLAY -->
@@ -382,7 +490,7 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=2.0.1"></script>
+  <script src="/static/app.js?v=2.1.0"></script>
 </body>
 
 </html>
