@@ -1,8 +1,8 @@
 import asyncio
 import os
+import re
 import json
 import logging
-from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from src.agents.supervisor import run_supervisor
 from src.core.copilot import copilot_chat
+from src.core.models import Intent
 from src.infrastructure.pdf_generator import generate_sds_pdf
 from src.core.logger import logger
 
@@ -49,10 +50,6 @@ async def favicon():
     return Response(status_code=204)
 
 MAX_INPUT_LENGTH = int(os.getenv("MAX_INPUT_LENGTH", "2000"))
-import re
-
-
-from src.core.models import Intent
 
 class AuditRequest(BaseModel):
     user_input: str = Field(description="Lab formulation note or chemical input text")
@@ -93,7 +90,7 @@ _EXAMPLE_SCENARIOS = {
         "input": "Mix 70% Isopropanol and 30% Water. Store in a polypropylene container at 25°C.",
     },
     "partial_toluene": {
-        "title": "PARTIAL: Toluene & Acetone Exposure Warning",
+        "title": "REVIEW_REQUIRED: Toluene & Acetone Exposure Warning",
         "input": "Formulation: 500 ppm Toluene, 800 ppm Acetone. Heated to 90°C in a polypropylene container.",
     },
     "chloroform_web": {

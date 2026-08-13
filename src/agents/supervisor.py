@@ -26,7 +26,8 @@ from src.infrastructure.cache import (
     set_semantic_cache,
     get_summary_cache,
     set_summary_cache,
-    get_osha_limits
+    get_osha_limits,
+    get_pubchem_cache
 )
 from src.core.logger import logger
 from src.core.constants import BOILING_POINTS_CELSIUS, CAS_TO_NAME
@@ -174,7 +175,6 @@ async def run_supervisor(
             state.chemicals = [ExtractedChemical(name=f.chemical_name, concentration=f.detected_concentration) for f in comp.chemical_flags]
             state.hardware = [ExtractedHardware(name=f.equipment_name, target_temperature_celsius=f.target_temperature_celsius) for f in comp.hardware_flags]
 
-            from src.infrastructure.cache import get_pubchem_cache
             for c in state.chemicals:
                 p_data = get_pubchem_cache(c.name)
                 if p_data:
@@ -418,8 +418,10 @@ async def run_supervisor(
     logger.info(f"[Supervisor] Safety Verdict calculated: '{state.overall_status}' ({len(state.chemical_flags)} chemical flags, {len(state.hardware_flags)} hardware flags)")
 
     violation_notes = (
-        [f"{f.chemical_name}: {f.detected_concentration} exceeds limit of {f.regulatory_limit}" for f in state.chemical_flags if not f.is_compliant and getattr(f, "status", "") != "UNKNOWN"] +
-        [f"{f.chemical_name}: Missing or Unknown chemical data" for f in state.chemical_flags if getattr(f, "status", "") in ("UNKNOWN", "REVIEW_REQUIRED")] +
+        # Only proven violations (NON_COMPLIANT or UNSAFE) get the "exceeds limit" message.
+        # REVIEW_REQUIRED and UNKNOWN are uncertainty states — not proven violations.
+        [f"{f.chemical_name}: {f.detected_concentration} exceeds limit of {f.regulatory_limit}" for f in state.chemical_flags if getattr(f, "status", "") == "NON_COMPLIANT"] +
+        [f"{f.chemical_name}: Missing or Unknown chemical data — manual expert review required" for f in state.chemical_flags if getattr(f, "status", "") in ("UNKNOWN", "REVIEW_REQUIRED")] +
         [f"{f.equipment_name}: {f.target_temperature_celsius}C exceeds max {f.max_safe_temperature_celsius}C" for f in state.hardware_flags if not f.is_safe and f.target_temperature_celsius is not None] +
         [f"{f.equipment_name}: Target temperature is missing, but other checks proceeded." for f in state.hardware_flags if not f.is_safe and f.target_temperature_celsius is None] +
         boiling_hazards
@@ -482,7 +484,10 @@ async def run_supervisor(
         1 for step in state.trace
         if "FastMCP" in step.action and step.status in ("success", "warning")
     )
-    mcp_rate = (mcp_successes / mcp_attempts) if mcp_attempts > 0 else 0.0
+    # When mcp_attempts == 0, no hardware was specified in the formulation.
+    # This is "N/A" — not a failure. Default to 1.0 (perfect) to avoid
+    # falsely penalizing the metric when hardware checks were not required.
+    mcp_rate = (mcp_successes / mcp_attempts) if mcp_attempts > 0 else 1.0
 
     llm_score = _evaluate_summary_quality(summary)
 

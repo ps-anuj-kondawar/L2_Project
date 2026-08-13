@@ -71,7 +71,7 @@ The system decouples compliance auditing from document synthesis using an **Inte
 *   **FR-3.3**: The MCP server shall perform normalized key matching (lowercase + substring match) to handle equipment naming variations (e.g., 'Borosilicate Glass Beaker' matches 'borosilicate glass beaker').
 
 ### FR-4: Intent-Driven Pipeline Execution
-*   **FR-4.1 (Fast Path)**: If the user requests an `audit`, the pipeline shall bypass SDS document generation, calculate the safety verdict (`APPROVED`, `PARTIAL`, `REJECTED`), and return results in ~1-2 seconds.
+*   **FR-4.1 (Fast Path)**: If the user requests an `audit`, the pipeline shall bypass SDS document generation, calculate the safety verdict (`APPROVED`, `REVIEW_REQUIRED`, `REJECTED`), and return results in ~1-2 seconds.
 *   **FR-4.2 (Full Path)**: If the user requests an `sds`, the pipeline shall trigger the `SDSAuthorAgent` to generate a 16-section document localized by region (US, EU, JP) and language.
 
 ### FR-5: User Interface & Real-Time Telemetry
@@ -82,7 +82,7 @@ The system decouples compliance auditing from document synthesis using an **Inte
 
 ### FR-6: Offline Evaluation Benchmarking
 *   **FR-6.1**: A dedicated benchmarking pipeline shall read from `benchmark_dataset.jsonl`.
-*   **FR-6.2**: The benchmark suite shall use `ragas` connected to Google Gemini to evaluate the RAG pipeline's context retrieval accuracy and the LLM's faithfulness, dumping results to `evaluation_results.json`.
+*   **FR-6.2**: The benchmark suite shall use `ragas` connected to Google Gemini to evaluate the RAG pipeline's context retrieval accuracy and the LLM's faithfulness, dumping results to `benchmark_results.json`.
 
 ### FR-7: Fail-Closed Safety Behavior
 *   **FR-7.1**: The system shall be fail-closed: a chemical or hardware item with no evaluable regulatory data shall default to `REVIEW_REQUIRED` status — never `COMPLIANT` or `SAFE`.

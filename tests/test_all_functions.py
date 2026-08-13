@@ -230,12 +230,13 @@ class TestCopilot(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(result["response"]), 10)
 
     @patch("src.core.copilot.llm_chat", new_callable=AsyncMock)
-    async def test_copilot_cas_number_resolves_in_message(self, mock_chat):
+    @patch("src.core.copilot.get_conversation_cache", return_value=None)
+    async def test_copilot_cas_number_resolves_in_message(self, mock_cache, mock_chat):
         """CAS number 71-43-2 in chat message must be detected and resolved to benzene for context lookup."""
         mock_chat.return_value = "CAS 71-43-2 is Benzene. Its OSHA PEL is 1 ppm TWA."
         result = await copilot_chat("What is CAS 71-43-2?", history=[])
         self.assertIn("response", result)
-        # The mock should have been called — proving the chat completed successfully
+        # Force cache miss means llm_chat must have been called
         mock_chat.assert_called_once()
 
 
@@ -353,8 +354,8 @@ class TestChemicalAgentFailClosed(unittest.IsolatedAsyncioTestCase):
         # Benzene is in master DB — even with empty concentration, must be REVIEW_REQUIRED
         flag, is_relevant = await check_single_chemical("benzene", "")
         self.assertFalse(flag.is_compliant)
-        # Master DB found, concentration missing → REVIEW_REQUIRED
-        self.assertIn(flag.status, ("REVIEW_REQUIRED", "NON_COMPLIANT"))
+        # Master DB found, concentration missing → must be exactly REVIEW_REQUIRED (not NON_COMPLIANT)
+        self.assertEqual(flag.status, "REVIEW_REQUIRED")
 
 
 if __name__ == "__main__":

@@ -455,10 +455,17 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
         status = "COMPLIANT" if is_compliant else "NON_COMPLIANT"
 
     elif not is_pct and not is_ppm and limits.get("ppm") is not None and conc_val is not None:
-        # Unitless concentration: assume same unit as limit (best effort)
-        regulatory_limit = f"{int(limits['ppm'])} ppm TWA"
-        is_compliant = conc_val <= limits["ppm"]
-        status = "COMPLIANT" if is_compliant else "NON_COMPLIANT"
+        # Unitless concentration: the unit is ambiguous — it cannot be scientifically
+        # compared to an airborne PEL in ppm without knowing if it represents ppm or %.
+        # Return REVIEW_REQUIRED for expert review rather than making a potentially
+        # dangerous incorrect compliance determination.
+        status = "REVIEW_REQUIRED"
+        is_compliant = False
+        regulatory_limit = (
+            f"{int(limits['ppm'])} ppm TWA (airborne inhalation limit) — "
+            f"detected concentration '{conc_str}' has no unit specifier. "
+            f"Cannot determine if this is airborne ppm or liquid %. Expert review required."
+        )
 
     else:
         # Limit exists but no compatible comparison path found

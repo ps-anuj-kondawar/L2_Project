@@ -2,3 +2,11 @@
 {"user_input": "Mix 99.999% Water and 0.5 ppm Benzene. Store at 25C in a polypropylene container.", "expected_status": "APPROVED"}
 {"user_input": "Formula B-2: 500 ppm Acetone in water. Heat to 60C in a polypropylene container.", "expected_status": "REJECTED"}
 {"user_input": "Water heating: 100% Water. Heat to 120C in a soda-lime glass beaker.", "expected_status": "REJECTED"}
+{"user_input": "Formula C-1: 5 ppm Benzene in water. Stored at 25C in a polypropylene container.", "expected_status": "REJECTED"}
+{"user_input": "Formula D-1: 99% Water, 1% Ethanol. Stored at 25C in a borosilicate glass beaker.", "expected_status": "APPROVED"}
+{"user_input": "Lab sample: 80% DragonBloodExtractSolvent and 20% Water in stainless steel tank at 40C.", "expected_status": "REVIEW_REQUIRED"}
+{"user_input": "Unknown formulation with exotic_polymer_XZ91 and water, no container specified.", "expected_status": "REVIEW_REQUIRED"}
+{"user_input": "Pure water sample. No container specified. No temperature given.", "expected_status": "REVIEW_REQUIRED"}
+{"user_input": "Mix of 0.05% Formaldehyde and 99.95% Water. Store at 20C in polypropylene container.", "expected_status": "REVIEW_REQUIRED"}
+{"user_input": "Formula E-1: 100% Methanol. Store at 15C in a borosilicate glass bottle.", "expected_status": "REVIEW_REQUIRED"}
+{"user_input": "CAS 71-43-2 at 5% in water. Container: borosilicate glass at 25C.", "expected_status": "REJECTED"}

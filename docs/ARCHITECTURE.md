@@ -1,6 +1,6 @@
 # ChemShield AI - Technical Architecture & Detailed Workflow Documentation
 
-**Version**: 2.5.0 (Enterprise Production Release)  
+**Version**: 3.0.0 (Capstone Reference Implementation)  
 **System**: Multi-Agent OSHA Compliance Auditing & Multi-Region GHS SDS Platform  
 **Target Environment**: High-Performance Asynchronous Python (FastAPI / Uvicorn)
 
@@ -44,7 +44,7 @@ The system decouples compliance auditing from document synthesis using an **Inte
                                 |       Safety Verdict & Summary Engine       |
                                 +---------------------------------------------+
                                                        |
-                                       [ intent == "audit_and_sds" / "sds" ]
+                                        [ intent in ("full", "sds", "audit_and_sds") ]
                                                        |
                                                        v
                                 +---------------------------------------------+

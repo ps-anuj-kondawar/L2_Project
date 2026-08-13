@@ -7,9 +7,10 @@ from mcp.client.stdio import stdio_client
 import os
 from src.core.state import AgentState
 from src.core.models import HardwareFlag
-from src.core.constants import MCP_SERVER_SCRIPT
+from src.core.constants import MCP_SERVER_SCRIPT, HARDWARE_LIMITS
 from src.core.logger import logger
 from src.infrastructure.llm_client import chat as llm_chat
+from src.utils.validator import fuzzy_match_hardware
 from tavily import TavilyClient
 
 
@@ -160,7 +161,7 @@ async def _mcp_check(hw_name: str, temp: float | None, session: ClientSession | 
     if session is not None:
         try:
             return await _execute_with_session(session)
-        except (Exception, BaseException) as e:
+        except Exception as e:
             logger.warning(f"[HardwareAgent] Single session execution failed for '{hw_name}': {e}. Falling back to stdio process.")
 
     env_vars = dict(os.environ)
@@ -173,10 +174,8 @@ async def _mcp_check(hw_name: str, temp: float | None, session: ClientSession | 
             async with ClientSession(r, w) as sess:
                 await sess.initialize()
                 return await _execute_with_session(sess)
-    except (Exception, BaseException) as e:
+    except Exception as e:
         logger.error(f"[HardwareAgent] MCP transport error for '{hw_name}' ({type(e).__name__}): {e}. Trying local limit lookup...")
-        from src.core.constants import HARDWARE_LIMITS
-        from src.utils.validator import fuzzy_match_hardware
         key = fuzzy_match_hardware(hw_name.lower().strip())
         if key in HARDWARE_LIMITS:
             max_temp = HARDWARE_LIMITS[key]
