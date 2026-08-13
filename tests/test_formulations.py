@@ -2,8 +2,22 @@ import unittest
 import asyncio
 import json
 from src.agents.supervisor import run_supervisor
+from src.core.models import PubChemData
 
 from unittest.mock import patch, AsyncMock
+
+
+def _make_null_pubchem(name: str) -> PubChemData:
+    """Return a minimal PubChemData with no network calls — safe offline fallback."""
+    return PubChemData(
+        chemical_name=name,
+        cid=None,
+        cas_number="Data not available",
+        signal_word=None,
+        hazard_statements=[],
+        ghs_pictogram_codes=[],
+    )
+
 
 async def mock_llm_chat(messages, json_mode=False):
     sys_msg = next((m["content"] for m in messages if m["role"] == "system"), "")
@@ -43,9 +57,10 @@ async def mock_llm_chat(messages, json_mode=False):
         return f'{{"chemicals": {json.dumps(chems)}, "hardware": {json.dumps(hws)}}}'
 
     if "multi-agent policy router" in sys_msg or "Supervisor AI Policy" in user_msg:
-        if "check_chemical_compliance" in user_msg and "chemical" not in user_msg.split("Completed Actions: ")[1].split(".")[0]:
+        completed = user_msg.split("Completed Actions: ")[1].split(".")[0] if "Completed Actions: " in user_msg else "[]"
+        if "check_chemical_compliance" in user_msg and "chemical" not in completed:
             return '{"action": "check_chemical_compliance", "reasoning": "Audit chemical compliance"}'
-        if "check_hardware_compatibility" in user_msg and "hardware" not in user_msg.split("Completed Actions: ")[1].split(".")[0]:
+        if "check_hardware_compatibility" in user_msg and "hardware" not in completed:
             return '{"action": "check_hardware_compatibility", "reasoning": "Audit hardware thermal safety"}'
         return '{"action": "finish_audit", "reasoning": "All checks completed"}'
 
@@ -54,65 +69,74 @@ async def mock_llm_chat(messages, json_mode=False):
 
 @patch("src.agents.supervisor.get_semantic_cache", return_value=None)
 @patch("src.agents.supervisor.llm_chat", new=AsyncMock(side_effect=mock_llm_chat))
+@patch("src.agents.intelligence_agent.get_pubchem_data")
 class TestFormulationCompliance(unittest.IsolatedAsyncioTestCase):
-
     @patch("src.agents.hardware_agent._mcp_check")
-    async def test_benzene_volume_exceeds_limit(self, mock_mcp, mock_cache):
+    async def test_benzene_volume_exceeds_limit(self, mock_mcp, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("benzene")
         mock_mcp.return_value = ({"equipment_name": "borosilicate glass beaker", "target_temperature_celsius": 50.0, "max_safe_temperature_celsius": 500.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Formula A-1: 94% Water, 6% Benzene. Heated to 50C in a borosilicate glass beaker."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "REJECTED")
 
     @patch("src.agents.hardware_agent._mcp_check")
-    async def test_benzene_volume_compliant(self, mock_mcp, mock_cache):
+    async def test_benzene_volume_compliant(self, mock_mcp, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("benzene")
         mock_mcp.return_value = ({"equipment_name": "borosilicate glass beaker", "target_temperature_celsius": 50.0, "max_safe_temperature_celsius": 500.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Formula A-2: 99.95% Water, 0.05% Benzene. Heated to 50C in a borosilicate glass beaker."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "APPROVED")
 
     @patch("src.agents.hardware_agent._mcp_check")
-    async def test_benzene_ppm_exceeds_limit(self, mock_mcp, mock_cache):
+    async def test_benzene_ppm_exceeds_limit(self, mock_mcp, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("benzene")
         mock_mcp.return_value = ({"equipment_name": "polypropylene container", "target_temperature_celsius": 25.0, "max_safe_temperature_celsius": 100.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Mix 99% Water and 5 ppm Benzene. Store at 25C in a polypropylene container."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "REJECTED")
 
     @patch("src.agents.hardware_agent._mcp_check")
-    async def test_benzene_ppm_compliant(self, mock_mcp, mock_cache):
+    async def test_benzene_ppm_compliant(self, mock_mcp, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("benzene")
         mock_mcp.return_value = ({"equipment_name": "polypropylene container", "target_temperature_celsius": 25.0, "max_safe_temperature_celsius": 100.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Mix 99.999% Water and 0.5 ppm Benzene. Store at 25C in a polypropylene container."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "APPROVED")
 
     @patch("src.agents.hardware_agent._mcp_check")
-    async def test_acetone_ppm_exceeds_limit(self, mock_mcp, mock_cache):
+    async def test_acetone_ppm_exceeds_limit(self, mock_mcp, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("acetone")
         mock_mcp.return_value = ({"equipment_name": "polypropylene container", "target_temperature_celsius": 60.0, "max_safe_temperature_celsius": 100.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Formula B-1: 1500 ppm Acetone in water. Heat to 60C in a polypropylene container."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "REJECTED")
 
     @patch("src.agents.hardware_agent._mcp_check")
-    async def test_acetone_ppm_boiling_point_hazard(self, mock_mcp, mock_cache):
+    async def test_acetone_ppm_boiling_point_hazard(self, mock_mcp, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("acetone")
         mock_mcp.return_value = ({"equipment_name": "polypropylene container", "target_temperature_celsius": 60.0, "max_safe_temperature_celsius": 100.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Formula B-2: 500 ppm Acetone in water. Heat to 60C in a polypropylene container."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "REJECTED")
 
     @patch("src.agents.hardware_agent._mcp_check")
-    async def test_hardware_glass_thermal_exceeds(self, mock_mcp, mock_cache):
+    async def test_hardware_glass_thermal_exceeds(self, mock_mcp, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("water")
         mock_mcp.return_value = ({"equipment_name": "soda-lime glass beaker", "target_temperature_celsius": 120.0, "max_safe_temperature_celsius": 100.0, "is_safe": False, "status": "UNSAFE"}, True, True)
         input_text = "Water heating: 100% Water. Heat to 120C in a soda-lime glass beaker."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "REJECTED")
 
     @patch("src.agents.hardware_agent._mcp_check")
-    async def test_hardware_glass_thermal_compliant(self, mock_mcp, mock_cache):
+    async def test_hardware_glass_thermal_compliant(self, mock_mcp, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("water")
         mock_mcp.return_value = ({"equipment_name": "soda-lime glass beaker", "target_temperature_celsius": 80.0, "max_safe_temperature_celsius": 100.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Water heating: 100% Water. Heat to 80C in a soda-lime glass beaker."
         res = await run_supervisor(input_text, intent="audit")
         self.assertEqual(res.compliance_report.overall_approval_status, "APPROVED")
 
-    async def test_empty_extraction_returns_review_required(self, mock_cache):
+    async def test_empty_extraction_returns_review_required(self, mock_pubchem, mock_cache):
+        mock_pubchem.return_value = _make_null_pubchem("unknown")
         with patch("src.agents.supervisor._extract_entities", new_callable=AsyncMock, return_value=([], [], False)):
             res = await run_supervisor("invalid input text", intent="audit")
             self.assertEqual(res.compliance_report.overall_approval_status, "REVIEW_REQUIRED")

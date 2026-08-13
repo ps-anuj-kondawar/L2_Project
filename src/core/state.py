@@ -9,7 +9,7 @@ from src.core.models import ExtractedChemical, ExtractedHardware, ChemicalFlag, 
 class AgentState:
     user_input: str
     run_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
-    intent: str = "audit_and_sds"
+    intent: str = "audit"
     region: str = "US"
     language: str = "en"
     chemicals: list[ExtractedChemical] = field(default_factory=list)

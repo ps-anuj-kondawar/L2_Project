@@ -59,7 +59,17 @@ class TestSDSGeneration(unittest.IsolatedAsyncioTestCase):
     @patch("src.agents.supervisor.get_semantic_cache", return_value=None)
     @patch("src.agents.supervisor.llm_chat", new=AsyncMock(side_effect=mock_sds_llm_chat))
     @patch("src.agents.sds_author_agent.llm_chat", new=AsyncMock(side_effect=mock_sds_llm_chat))
-    async def test_sds_generation_full_pipeline(self, mock_cache, mock_mcp):
+    @patch("src.agents.intelligence_agent.get_pubchem_data", new_callable=AsyncMock)
+    async def test_sds_generation_full_pipeline(self, mock_pubchem, mock_cache, mock_mcp):
+        from src.core.models import PubChemData
+        mock_pubchem.return_value = PubChemData(
+            chemical_name="benzene",
+            cid=None,
+            cas_number="Data not available",
+            signal_word=None,
+            hazard_statements=[],
+            ghs_pictogram_codes=[]
+        )
         mock_mcp.return_value = ({"equipment_name": "borosilicate glass beaker", "target_temperature_celsius": 50.0, "max_safe_temperature_celsius": 500.0, "is_safe": True, "status": "SAFE"}, True, True)
         input_text = "Formula A-1: 94% Water, 6% Benzene. Heated to 50C in a borosilicate glass beaker."
         result = await run_supervisor(input_text, intent="full")
@@ -138,7 +148,7 @@ class TestReflectionCAsFallback(unittest.IsolatedAsyncioTestCase):
             cid=None,
             cas_number="Data not available",
             molecular_weight=None,
-            boiling_point=None,
+            boiling_point_celsius=None,
             signal_word=None,
             hazard_statements=[],
             ghs_pictogram_codes=[]

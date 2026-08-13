@@ -89,14 +89,13 @@ async def chat(messages: list[dict], json_mode: bool = False) -> str:
 async def _gemini_chat(messages: list[dict], json_mode: bool) -> str:
     client = _get_genai_client()
 
+    system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
     config = types.GenerateContentConfig(
         temperature=0.0,
         max_output_tokens=4096,
         response_mime_type="application/json" if json_mode else "text/plain",
+        system_instruction=system_msg if system_msg else None,
     )
-    system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
-    if system_msg:
-        config.system_instruction = system_msg
     
     contents = []
     for m in messages:

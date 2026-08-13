@@ -109,7 +109,7 @@ async def run_benchmark():
             "ragas_metrics": ragas_dict,
         }
         
-        with open("evaluation_results.json", "w", encoding="utf-8") as f:
+        with open("benchmark_results.json", "w", encoding="utf-8") as f:
             json.dump(summary_output, f, indent=4, default=str)
             
         print("\nBenchmark results saved to benchmark_results.json")
@@ -123,9 +123,10 @@ async def run_benchmark():
                 {"input": q, "expected": e, "actual": a, "match": a == e}
                 for q, e, a in zip(questions, expected_statuses, actual_statuses)
             ],
+            "ragas_metrics": None,
             "ragas_error": str(e),
         }
-        with open("evaluation_results.json", "w", encoding="utf-8") as f:
+        with open("benchmark_results.json", "w", encoding="utf-8") as f:
             json.dump(summary_output, f, indent=4, default=str)
         print("\nPartial benchmark results saved to benchmark_results.json")
 

@@ -12,7 +12,7 @@ Checks performed (in order):
   4. PPE completeness — Section 8 must reference protective equipment
   5. UN transport classification — Section 14 must contain UN number or classification
   6. Statutory regulatory references — Section 15 must cite TSCA, SARA, REACH, or OSHA
-  7. Emergency contact — Section 1 must contain a hotline number and responsible party
+  7. Emergency contact — Section 1 must contain emergency contact and responsible party info
   8. Physical properties — Section 9 must contain boiling point, flash point, or vapor pressure
   9. Carcinogen disclosure — if a carcinogen is present, Section 11 must reference IARC or NTP
 
@@ -24,11 +24,10 @@ import time
 import re
 from src.core.state import AgentState
 from src.core.logger import logger
-from src.core.constants import CAS_TO_NAME
+from src.core.constants import CAS_TO_NAME, MASTER_CHEMICAL_DATABASE
 
 # Compiled regex patterns
 _CAS_PATTERN = re.compile(r"\b\d{2,7}-\d{2}-\d\b")
-_PHONE_PATTERN = re.compile(r"\b\d{3}[-.\\s]?\d{3}[-.\\s]?\d{4}\b")
 
 # Carcinogens that require IARC/NTP disclosure in Section 11
 _IARC_GROUP1_CHEMICALS = {"benzene", "formaldehyde", "sulfuric acid"}
@@ -91,7 +90,6 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
     # Fallback: extend known CAS set from MASTER_CHEMICAL_DATABASE (BUG-5 fix)
     for chem in state.chemicals or []:
         chem_lower = chem.name.lower().strip()
-        from src.core.constants import MASTER_CHEMICAL_DATABASE
         master_entry = MASTER_CHEMICAL_DATABASE.get(chem_lower)
         if master_entry and master_entry.get("cas_number"):
             known_cas.add(master_entry["cas_number"])
@@ -153,17 +151,26 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
         )
 
     # Check 7: Section 1 must contain emergency contact information
+    # Verifies the DRAFT disclaimer and responsible party placeholder are present.
+    # Does not validate a specific phone number format — formatting varies by jurisdiction.
     sec1_content = next((s.content for s in sds.sections if s.section_number == 1), "")
     sec1_upper = sec1_content.upper()
-    has_emergency = (
-        ("EMERGENCY" in sec1_upper or "CHEMTREC" in sec1_upper)
-        and ("RESPONSIBLE PARTY" in sec1_upper or _PHONE_PATTERN.search(sec1_content) is not None)
+    has_emergency_keyword = (
+        "EMERGENCY" in sec1_upper
+        or "CHEMTREC" in sec1_upper
+        or "POISON" in sec1_upper
+        or "HOTLINE" in sec1_upper
     )
-    if not has_emergency:
+    has_responsible_party = (
+        "RESPONSIBLE PARTY" in sec1_upper
+        or "TO BE COMPLETED" in sec1_upper
+        or "DRAFT" in sec1_upper
+    )
+    if not (has_emergency_keyword and has_responsible_party):
         state.reflection_passed = False
         state.reflection_notes.append(
-            "Section 1 (Identification) is missing emergency telephone hotline contact information "
-            "or responsible party disclaimer. OSHA HazCom 2012 requires a 24-hour emergency number."
+            "Section 1 (Identification) is missing emergency contact information or responsible party disclaimer. "
+            "Must include an emergency contact reference (e.g., CHEMTREC) and a 'DRAFT — [TO BE COMPLETED BY RESPONSIBLE PARTY]' disclaimer per OSHA HazCom 2012."
         )
 
     # Check 8: Section 9 must contain physical properties relevant to safety

@@ -100,17 +100,17 @@ ChemShield AI includes a comprehensive suite of unit tests. Run the test modules
 
 ### 1. Test System Functions, Cache, GHS Rules, & Copilot
 ```bash
-python -m unittest tests/test_all_functions.py
+python -m unittest tests.test_all_functions
 ```
 
 ### 2. Test Formulation Compliance Auditing
 ```bash
-python -m unittest tests/test_formulations.py
+python -m unittest tests.test_formulations
 ```
 
 ### 3. Test PubChem API Integration & 16-Section SDS Generation
 ```bash
-python -m unittest tests/test_sds_generation.py
+python -m unittest tests.test_sds_generation
 ```
 
 ---
@@ -122,12 +122,10 @@ Run the RAGAS-based benchmark suite against the ground-truth test dataset:
 python -m src.scripts.run_benchmark
 ```
 
-Results are written to `evaluation_results.json` in the project root. The benchmark evaluates:
-- RAG Context Precision
-- Answer Relevancy
-- LLM Faithfulness
-- MCP tool success rate
-- End-to-end pipeline latency
+Results are written to `benchmark_results.json` in the project root. The benchmark evaluates:
+- Verdict Accuracy (APPROVED / REJECTED / REVIEW_REQUIRED vs. expected)
+- Answer Relevancy (Ragas metric via Gemini)
+- LLM Faithfulness (Ragas metric via Gemini)
 
 ---
 
