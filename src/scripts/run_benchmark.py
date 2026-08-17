@@ -65,9 +65,10 @@ async def run_benchmark():
     verdict_accuracy = correct_count / len(scenarios) if scenarios else 0.0
     print(f"\n=== Overall Verdict Accuracy: {verdict_accuracy:.1%} ({correct_count}/{len(scenarios)}) ===")
 
-    # 3. Setup Gemini for Ragas
+    # temperature param intentionally omitted — deprecated for Gemini 3.6+ thinking models
+    # per Google July 2026 API docs.
     model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
-    llm = ChatGoogleGenerativeAI(model=model_name, temperature=0)
+    llm = ChatGoogleGenerativeAI(model=model_name)
     embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
     
     # 4. Create Ragas Dataset

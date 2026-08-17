@@ -83,10 +83,10 @@ Once entities are extracted, the Supervisor executes a dynamic ReAct decision lo
 3. **Observation Feedback & Safety Guardrails**: Results of each tool invocation are formatted as observations for subsequent policy decisions. If the model completes early, supervisor safety guardrails ensure all essential safety checks run fail-closed.
 
 ### Phase 4: Deterministic Safety Verdict & Summary Synthesis
-- **Verdict Calculation**: The Supervisor evaluates flags from all agents:
+- **Verdict Calculation**: The Supervisor evaluates flags from all agents using a fail-closed hierarchy:
   - **`APPROVED`**: All chemical concentrations are within OSHA regulatory limits and equipment operating temperatures are below maximum safe thresholds.
-  - **`REJECTED`**: Any chemical concentration exceeds OSHA PELs or container operating temperature exceeds hardware thermal safety limits.
-  - **`PARTIAL`**: Secondary physical hazards detected (e.g., target operating temperature exceeds liquid boiling point causing pressure buildup).
+  - **`REJECTED`**: Any chemical concentration exceeds OSHA PELs/exposure limits, container operating temperature exceeds hardware thermal limits, or liquid operating temperature exceeds boiling point.
+  - **`REVIEW_REQUIRED`**: Unknown chemicals/hardware, missing concentrations, extraction failures, or incompatible unit comparisons.
 - **Summary Generation**: The LLM synthesizes a concise, authoritative one-sentence safety summary citing exact violations and limits.
 
 ### Phase 5: GHS SDS Authoring (Multi-Region & Multi-Language)

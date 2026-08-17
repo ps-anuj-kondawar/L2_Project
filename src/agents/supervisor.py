@@ -337,17 +337,45 @@ async def run_supervisor(
             completed_actions.add("sds")
             intent = "full"
             observations.append("User requested SDS generation; flagged intent='full'.")
+            state.add_trace(
+                agent="Supervisor",
+                action="Model Policy Decision: flag_sds_required",
+                observation="Model selected SDS generation based on user intent.",
+                status="success",
+                action_source="model_policy"
+            )
         elif next_action == "check_chemical_compliance":
+            state.add_trace(
+                agent="Supervisor",
+                action="Model Policy Decision: check_chemical_compliance",
+                observation=f"Model selected chemical compliance check at step {step_count}.",
+                status="success",
+                action_source="model_policy"
+            )
             await run_chemical_agent(state)
             completed_actions.add("chemical")
             chem_obs = [f"{f.chemical_name}: status={f.status}, limit={f.regulatory_limit}" for f in state.chemical_flags]
             observations.append(f"Chemical Compliance Audit: {chem_obs}")
         elif next_action == "check_hardware_compatibility":
+            state.add_trace(
+                agent="Supervisor",
+                action="Model Policy Decision: check_hardware_compatibility",
+                observation=f"Model selected hardware compatibility check at step {step_count}.",
+                status="success",
+                action_source="model_policy"
+            )
             await run_hardware_agent(state)
             completed_actions.add("hardware")
             hw_obs = [f"{f.equipment_name}: status={f.status}, max_temp={f.max_safe_temperature_celsius}C" for f in state.hardware_flags]
             observations.append(f"Hardware Compatibility Audit: {hw_obs}")
         elif next_action == "fetch_pubchem_intelligence":
+            state.add_trace(
+                agent="Supervisor",
+                action="Model Policy Decision: fetch_pubchem_intelligence",
+                observation=f"Model selected PubChem intelligence fetch at step {step_count}.",
+                status="success",
+                action_source="model_policy"
+            )
             await run_intelligence_agent(state)
             completed_actions.add("pubchem")
             pub_obs = [f"{c}: CID={data.get('cid')}" for c, data in state.pubchem_data.items() if isinstance(data, dict)]

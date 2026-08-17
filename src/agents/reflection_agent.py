@@ -184,7 +184,7 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
 
     # Check 9: Carcinogen IARC/NTP disclosure in Section 11
     sec11_content = next((s.content for s in sds.sections if s.section_number == 11), "")
-    chem_names_lower = {c.name.lower() for c in (state.chemicals or [])}
+    chem_names_lower = {c.name.lower().strip() for c in (state.chemicals or [])}
     has_carcinogen = bool(chem_names_lower & _CARCINOGENS_REQUIRING_DISCLOSURE)
     if has_carcinogen:
         if not any(kw in sec11_content.upper() for kw in ["IARC", "NTP", "CARCINOGEN", "KNOWN TO CAUSE CANCER"]):
@@ -195,13 +195,37 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
                 "IARC and NTP carcinogen status must be explicitly stated."
             )
 
+    # Check 10: Chemical Cross-Section Consistency Audit (Section 3 Integrity Guard)
+    # Ensures chemicals mentioned in Section 3 (Composition/Ingredients) are limited to
+    # the actual formulation components. This prevents hallucinated extra chemicals in the
+    # ingredient list only — other sections legitimately use generic safety language.
+    # Scanning all sections would produce false positives on standard boilerplate text.
+    sec3_only = sec3_content.lower()
+    unrelated_detected = []
+    for db_chem in MASTER_CHEMICAL_DATABASE:
+        # Skip formulation chemicals and very short names (acronyms, abbreviations)
+        if db_chem in chem_names_lower or len(db_chem) < 6:
+            continue
+        # Match whole word in Section 3 ingredient list only
+        if re.search(r'\b' + re.escape(db_chem) + r'\b', sec3_only):
+            unrelated_detected.append(db_chem)
+
+    if unrelated_detected:
+        state.reflection_passed = False
+        issues_str = ", ".join([f"'{c}'" for c in unrelated_detected[:5]])
+        state.reflection_notes.append(
+            f"CRITICAL: Section 3 lists chemicals not present in the formulation ({issues_str}). "
+            f"Section 3 (Composition/Ingredients) must only contain chemicals extracted from the user input."
+        )
+
+
     duration = int((time.time() - start_time) * 1000)
     status_str = "passed" if state.reflection_passed else f"failed ({len(state.reflection_notes)} issues)"
 
     logger.info(f"[ReflectionAgent] Audit complete: {status_str}")
     state.add_trace(
         agent="ReflectionAgent",
-        action=f"GHS Compliance & Guardrail Audit (9 checks)",
+        action="GHS Compliance & Guardrail Audit (10 checks)",
         observation=f"Reflection audit {status_str}. Notes: {state.reflection_notes}",
         duration_ms=duration,
         status="success" if state.reflection_passed else "warning"

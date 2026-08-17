@@ -490,6 +490,45 @@
     </div>
   </div>
 
+  <!-- INCOMPLETE FORMULATION WARNING MODAL -->
+  <div class="modal-overlay hidden" id="incomplete-modal-overlay" role="dialog" aria-modal="true"
+    aria-labelledby="incomplete-modal-title">
+    <div class="incomplete-modal-card">
+      <div class="incomplete-modal-header">
+        <div class="incomplete-modal-icon-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="incomplete-modal-title" id="incomplete-modal-title">Incomplete Formulation Detected</h3>
+          <p class="incomplete-modal-subtitle">GHS Safety Data Sheet generation requires quantifiable ingredient parameters.</p>
+        </div>
+      </div>
+
+      <div class="incomplete-modal-body">
+        <div class="incomplete-issues-box" id="incomplete-issues-list">
+          <!-- Dynamically populated with specific missing items -->
+        </div>
+
+        <div class="incomplete-warning-notice">
+          <strong>Why this matters:</strong> Without complete concentrations (e.g. % w/w or ppm) or verified chemical identities, GHS mixture classification cut-offs, flash points, and PPE matrices cannot be calculated reliably. Generating an SDS with missing data consumes unnecessary AI tokens and may yield unverified hazard defaults.
+        </div>
+      </div>
+
+      <div class="incomplete-modal-actions">
+        <button class="btn-pill-secondary" id="incomplete-modal-ok-btn" title="Close this popup and edit your formulation to add missing concentrations">
+          OK, Let Me Fix It
+        </button>
+        <button class="btn-pill-warning-outline" id="incomplete-modal-risk-btn" title="Proceed with generating a draft SDS at your own risk despite missing data">
+          Generate SDS on Your Risk
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/app.js?v=2.1.0"></script>
 </body>
 
