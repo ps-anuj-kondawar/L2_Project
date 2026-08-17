@@ -1522,3 +1522,195 @@ footer {
   font-style: italic;
 }
 
+/* ─── MODAL OVERLAY & POPUPS ──────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 23, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.modal-overlay.hidden {
+  display: none !important;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── INCOMPLETE FORMULATION WARNING MODAL ────────────────────────────────── */
+.incomplete-modal-card {
+  background: var(--surface-white);
+  border: 1px solid rgba(201, 133, 43, 0.35);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(201, 133, 43, 0.2);
+  border-radius: var(--radius-md);
+  max-width: 580px;
+  width: 100%;
+  padding: 24px;
+  position: relative;
+  animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.incomplete-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.incomplete-modal-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(201, 133, 43, 0.15);
+  border: 1px solid rgba(201, 133, 43, 0.3);
+  color: #c9852b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.incomplete-modal-title {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--on-surface);
+  margin: 0 0 4px 0;
+}
+
+.incomplete-modal-subtitle {
+  font-size: 12.5px;
+  color: var(--on-surface-var);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.incomplete-modal-body {
+  margin-bottom: 20px;
+}
+
+.incomplete-issues-box {
+  background: var(--surface-low);
+  border: 1px solid var(--grid-line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.incomplete-issue-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--on-surface);
+  padding: 4px 0;
+  line-height: 1.4;
+}
+
+.incomplete-issue-dot {
+  color: #c9852b;
+  font-size: 14px;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.incomplete-warning-notice {
+  font-size: 11.5px;
+  color: var(--on-surface-var);
+  background: rgba(201, 133, 43, 0.08);
+  border-left: 3px solid #c9852b;
+  padding: 10px 12px;
+  border-radius: 0 6px 6px 0;
+  line-height: 1.5;
+}
+
+.incomplete-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid-line);
+}
+
+.btn-pill-warning-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-head);
+  font-size: 12.5px;
+  font-weight: 600;
+  background: transparent;
+  color: #c9852b;
+  border: 1.5px solid #c9852b;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-pill-warning-outline:hover {
+  background: rgba(201, 133, 43, 0.15);
+  color: #d9953b;
+  border-color: #d9953b;
+  transform: translateY(-1px);
+}
+
+/* ─── SDS WORKER PREVIEW MODAL ────────────────────────────────────────────── */
+.sds-modal {
+  background: var(--surface-white);
+  border: 1px solid var(--grid-line);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-md);
+  max-width: 900px;
+  width: 100%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sds-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--grid-line);
+  background: var(--surface-low);
+}
+
+.sds-modal-title {
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.sds-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sds-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+

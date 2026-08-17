@@ -172,7 +172,7 @@ If limit found:
   │    YES → Direct comparison → COMPLIANT / NON_COMPLIANT
   │
   └─ Unitless concentration AND ppm limit?
-       YES → Assume same unit → COMPLIANT / NON_COMPLIANT (best effort, flagged)
+       YES → Status: REVIEW_REQUIRED (ambiguous unit cannot be safely compared to airborne PEL)
 ```
 
 **Key principle**: Fail-closed defaults apply at every step. A positive evidence of compliance is required to emit `COMPLIANT`. `UNKNOWN` is never interpreted as safe.

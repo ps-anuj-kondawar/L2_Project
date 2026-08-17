@@ -6,8 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Holds the last audited formulation + audit summary so the Copilot can
   // reference it without the user re-typing anything.
   const session = {
-    formulation:  null,
-    auditSummary: null,
+    formulation:      null,
+    auditSummary:     null,
+    lastAuditResult:  null,
   };
 
   // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -23,6 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const onboardingClose   = document.getElementById('onboarding-close-btn');
   const retrievalLegend   = document.getElementById('retrieval-legend');
   const flagsHelpText     = document.getElementById('flags-help-text');
+
+  // Incomplete Formulation Modal refs
+  const incompleteModalOverlay = document.getElementById('incomplete-modal-overlay');
+  const incompleteIssuesList   = document.getElementById('incomplete-issues-list');
+  const incompleteOkBtn        = document.getElementById('incomplete-modal-ok-btn');
+  const incompleteRiskBtn      = document.getElementById('incomplete-modal-risk-btn');
 
   // Audit section
   const metricsGrid       = document.getElementById('metrics-grid');
@@ -79,6 +86,94 @@ document.addEventListener('DOMContentLoaded', () => {
   let chatHistory = [];
   let scenarioMap = {};
   let activeEventSource = null;
+  let pendingSdsAction = null;
+
+  // ── Formulation Completeness Evaluator ──────────────────────────────────
+  function evaluateFormulationCompleteness(text, auditResult = null) {
+    const issues = [];
+    const lower = text.toLowerCase();
+
+    // Check 1: Prior audit result flags if available for the same formulation text
+    if (auditResult && auditResult.compliance_report && auditResult.compliance_report.chemical_flags) {
+      auditResult.compliance_report.chemical_flags.forEach(f => {
+        if (!f.detected_concentration || f.detected_concentration === 'Not specified' || f.detected_concentration === 'null') {
+          issues.push(`Chemical <strong>${f.chemical_name}</strong> has no specified concentration. GHS mixture classification cut-offs require explicit concentration (% w/w or ppm).`);
+        }
+      });
+    }
+
+    // Check 2: Direct heuristic pattern analysis on input text
+    const commonChems = [
+      'benzene', 'toluene', 'acetone', 'methanol', 'ethanol', 'isopropanol', 'ipa',
+      'chloroform', 'formaldehyde', 'sulfuric acid', 'hydrochloric acid', 'nitric acid',
+      'sodium hydroxide', 'phenol', 'dichloromethane', 'methylene chloride', 'hexane',
+      'diethyl ether', 'tetrahydrofuran', 'thf', 'acetonitrile', 'xylene', 'ammonia'
+    ];
+
+    const detectedChems = commonChems.filter(c => lower.includes(c));
+    const hasUnits = /([0-9]+(?:\.[0-9]+)?\s*(%|ppm|mg\/l|g\/l|wt%|vol%|m|mm|mol|mg|g|ml|l))/i.test(text);
+
+    if (detectedChems.length > 0 && !hasUnits && issues.length === 0) {
+      detectedChems.forEach(c => {
+        const capitalized = c.charAt(0).toUpperCase() + c.slice(1);
+        issues.push(`Chemical <strong>${capitalized}</strong>: No concentration detected in input (e.g. missing percentage '%' or 'ppm').`);
+      });
+    }
+
+    if (detectedChems.length === 0 && !hasUnits && text.length > 0 && issues.length === 0) {
+      issues.push(`Unquantified formulation: No quantifiable chemical concentrations or standard laboratory formulation parameters detected.`);
+    }
+
+    return {
+      isComplete: issues.length === 0,
+      issues: issues
+    };
+  }
+
+  function showIncompleteWarningModal(issues, onProceedRisk) {
+    if (!incompleteModalOverlay || !incompleteIssuesList) return;
+    incompleteIssuesList.innerHTML = issues.map(iss => `
+      <div class="incomplete-issue-item">
+        <span class="incomplete-issue-dot">&#9888;</span>
+        <span>${iss}</span>
+      </div>
+    `).join('');
+
+    pendingSdsAction = onProceedRisk;
+    incompleteModalOverlay.classList.remove('hidden');
+  }
+
+  if (incompleteOkBtn) {
+    incompleteOkBtn.addEventListener('click', () => {
+      if (incompleteModalOverlay) incompleteModalOverlay.classList.add('hidden');
+      pendingSdsAction = null;
+      if (formulationInput) {
+        formulationInput.focus();
+        formulationInput.style.borderColor = 'var(--partial)';
+        setTimeout(() => { formulationInput.style.borderColor = ''; }, 2000);
+      }
+    });
+  }
+
+  if (incompleteRiskBtn) {
+    incompleteRiskBtn.addEventListener('click', () => {
+      if (incompleteModalOverlay) incompleteModalOverlay.classList.add('hidden');
+      if (typeof pendingSdsAction === 'function') {
+        const action = pendingSdsAction;
+        pendingSdsAction = null;
+        action();
+      }
+    });
+  }
+
+  if (incompleteModalOverlay) {
+    incompleteModalOverlay.addEventListener('click', (e) => {
+      if (e.target === incompleteModalOverlay) {
+        incompleteModalOverlay.classList.add('hidden');
+        pendingSdsAction = null;
+      }
+    });
+  }
 
   // ── Step tracker status helper ───────────────────────────────────────────
   function resetTracker(intent = 'audit') {
@@ -161,6 +256,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return;
       }
+
+      // Check formulation completeness before generating SDS
+      const check = evaluateFormulationCompleteness(text, session.lastAuditResult);
+      if (!check.isComplete) {
+        showIncompleteWarningModal(check.issues, () => {
+          runAudit(text, 'full');
+          activateSection('sds');
+        });
+        return;
+      }
+
       runAudit(text, 'full');
       activateSection('sds');
     });
@@ -308,6 +414,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let intent = 'audit';
     if (lowerText.includes('sds') || lowerText.includes('safety data sheet')) {
       intent = 'full';
+    }
+
+    if (intent === 'full' || intent === 'sds') {
+      const check = evaluateFormulationCompleteness(text, session.lastAuditResult);
+      if (!check.isComplete) {
+        showIncompleteWarningModal(check.issues, () => {
+          runAudit(text, intent);
+        });
+        return;
+      }
     }
     
     runAudit(text, intent);
@@ -498,8 +614,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const status = report.overall_approval_status;
 
     // Store session context so Copilot picks it up
-    session.formulation  = formulation;
-    session.auditSummary = report.summary;
+    session.formulation     = formulation;
+    session.auditSummary    = report.summary;
+    session.lastAuditResult = result;
     updateContextBanner();
 
     // ── Metric scorecards

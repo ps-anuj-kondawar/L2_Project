@@ -90,8 +90,10 @@ async def _gemini_chat(messages: list[dict], json_mode: bool) -> str:
     client = _get_genai_client()
 
     system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
+    # Note: temperature is intentionally omitted — Google's latest Gemini models
+    # (gemini-3.6-flash and above) use a built-in deterministic configuration.
+    # Passing temperature=0.0 is deprecated for thinking-enabled models per July 2026 API docs.
     config = types.GenerateContentConfig(
-        temperature=0.0,
         max_output_tokens=4096,
         response_mime_type="application/json" if json_mode else "text/plain",
         system_instruction=system_msg if system_msg else None,
@@ -132,10 +134,10 @@ async def _openrouter_chat(messages: list[dict], json_mode: bool) -> str:
     }
     # Omit response_format parameter on OpenRouter free tier to ensure compatibility across all free models
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=20.0) as client:
         resp = await client.post(
             "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers, json=payload, timeout=10.0
+            headers=headers, json=payload
         )
     resp.raise_for_status()
     raw_content = resp.json()["choices"][0]["message"].get("content")
