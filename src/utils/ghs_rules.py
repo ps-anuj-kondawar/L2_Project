@@ -14,6 +14,7 @@ All data sourced from:
 
 import os
 from typing import Any
+
 from src.core.logger import logger
 
 # Standard GHS Pictogram Code -> Filename mapping

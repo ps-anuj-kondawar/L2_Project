@@ -1,8 +1,9 @@
 import asyncio
 import time
+
+from src.core.logger import logger
 from src.core.state import AgentState
 from src.infrastructure.pubchem_client import get_pubchem_data
-from src.core.logger import logger
 
 
 async def run_intelligence_agent(state: AgentState) -> AgentState:

@@ -1,24 +1,45 @@
+"""
+ChemShield AI — Chemical Safety Copilot Engine.
+
+Provides multi-turn conversational safety assistance with:
+- Automated entity and CAS number recognition in chat prompts
+- Grounded RAG retrieval against OSHA standards and PubChem databases
+- Context injection for active formulation audits and compliance findings
+- Session-based conversation caching for low-latency responses
+"""
+
 import asyncio
 import re
 import time
 
-from src.infrastructure.llm_client import chat as llm_chat
-from src.infrastructure.rag import query_regulations
+from src.agents.chemical_agent import _search_chemical_safety
+from src.core.constants import CAS_TO_NAME
+from src.core.logger import logger
 from src.infrastructure.cache import (
     get_conversation_cache,
     set_conversation_cache,
 )
-from src.agents.chemical_agent import _search_chemical_safety
+from src.infrastructure.llm_client import chat as llm_chat
+from src.infrastructure.rag import query_regulations
 from src.utils.validator import KNOWN_CHEMICALS
-from src.core.constants import CAS_TO_NAME
-from src.core.logger import logger
 
 # Detect CAS Registry Numbers typed into the chat (e.g., "71-43-2", "7664-93-9")
 _CAS_IN_TEXT_PATTERN = re.compile(r'\b(\d{2,7}-\d{2}-\d)\b')
 
 
 async def _get_single_chemical_context(name: str) -> str:
-    """Fetch OSHA regulatory context for a single chemical via RAG or web search fallback."""
+    """
+    Fetch OSHA regulatory and exposure limit context for a single chemical.
+
+    Queries ChromaDB RAG first, falling back to Tavily live web search if no
+    authoritative local vector document matches the query chemical.
+
+    Args:
+        name (str): Canonical or common chemical name.
+
+    Returns:
+        str: Formatted OSHA safety data string with source citations, or empty string on error.
+    """
     try:
         rag_docs = query_regulations(name)
         top_doc = rag_docs[:1]
@@ -47,14 +68,21 @@ async def copilot_chat(
     audit_summary: str | None = None,
 ) -> dict:
     """
-    Multi-turn safety copilot chatbot with shared session context window.
+    Execute a multi-turn safety copilot conversation turn.
 
-    If formulation_context is provided (the last audited formulation text from the UI),
-    it is injected into the system prompt so the copilot answers in the context of
-    the active formulation without the user needing to re-type it.
+    Injects active formulation context and prior audit findings into the system prompt,
+    performs entity detection and CAS resolution on chat inputs, and retrieves
+    authoritative safety data to ground the LLM response.
 
-    Queries RAG or web search fallback if a chemical is mentioned in the query.
-    Returns dict containing response text and execution evaluation metrics.
+    Args:
+        message (str): Current user query or prompt.
+        history (list): List of previous message dictionaries in chronological order.
+        formulation_context (str | None): Active lab formulation note for contextual awareness.
+        audit_summary (str | None): Summary sentence from the latest compliance audit run.
+
+    Returns:
+        dict: Response dictionary containing 'response', 'latency_seconds', 'grounding_precision',
+              'instruction_score', and 'cache_hit' indicators.
     """
     start_time = time.time()
     logger.info(f"Copilot Chat message received: '{message}'")
@@ -147,7 +175,7 @@ async def copilot_chat(
         logger.error(f"Error generating chat response: {e}")
         latency = round(time.time() - start_time, 3)
         return {
-            "response": f"I apologize, but I encountered an error while processing your request: {str(e)}",
+            "response": f"I apologize, but I encountered an error while processing your request: {e!s}",
             "latency_seconds": latency,
             "grounding_precision": 0.0,
             "instruction_score": 0.0,

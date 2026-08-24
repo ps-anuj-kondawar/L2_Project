@@ -1,3 +1,13 @@
+"""
+ChemShield AI — End-to-End API Test Harness.
+
+Executes integration test cases parsed from `testcases.md` against the active
+local FastAPI server running at http://localhost:7860/api/v1/audit:
+- Parses markdown fenced test input and expected status blocks
+- Dispatches HTTP POST requests with diagnostic retry handling
+- Verifies overall approval statuses and outputs colorized pass/fail summaries
+"""
+
 import requests
 import json
 import re
@@ -6,7 +16,17 @@ import os
 
 URL = "http://localhost:7860/api/v1/audit"
 
-def parse_testcases(file_path):
+
+def parse_testcases(file_path: str) -> list[dict]:
+    """
+    Parse test scenarios and expected results from a markdown test specification file.
+
+    Args:
+        file_path (str): Path to markdown testcases file.
+
+    Returns:
+        list[dict]: List of parsed scenario dictionaries with 'name', 'input', and 'expected'.
+    """
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -38,11 +58,11 @@ def parse_testcases(file_path):
                 })
     return tests
 
-def run_tests():
-    tests = parse_testcases("testcases.md")
-    if not tests:
-        print("No tests found in testcases.md")
-        return
+
+def run_tests() -> None:
+    """
+    Execute parsed test cases sequentially against the local API and log results.
+    """
         
     print(f"Found {len(tests)} test cases. Running them through the API (this may take a while)...")
     

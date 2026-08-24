@@ -1,37 +1,36 @@
+"""
+ChemShield AI — Unit & Integration Test Suite.
+
+Validates core utility modules, GHS rule engines, multi-tier SQLite caching,
+domain model invariants, and deterministic agent logic in test isolation.
+"""
+
 import unittest
-import os
-import sqlite3
-import asyncio
-from src.utils.ghs_rules import (
-    determine_overall_signal_word,
-    get_un_transport_info,
-    get_carcinogen_info,
-    load_pictogram_svg
-)
-from src.infrastructure.cache import (
-    get_summary_cache,
-    set_summary_cache,
-    get_conversation_cache,
-    set_conversation_cache,
-    get_pubchem_cache,
-    set_pubchem_cache,
-    get_osha_limits,
-    set_osha_limits
+
+from src.agents.chemical_agent import check_single_chemical, run_chemical_agent
+from src.agents.hardware_agent import run_hardware_agent
+from src.core.copilot import copilot_chat
+from src.core.models import (
+    ExtractedChemical,
+    ExtractedHardware,
 )
 from src.core.state import AgentState
-from src.core.models import (
-    PubChemData,
-    ComplianceReport,
-    SDSDocument,
-    SDSSection,
-    ChemicalFlag,
-    HardwareFlag,
-    ExtractedHardware,
-    ExtractedChemical
+from src.infrastructure.cache import (
+    get_conversation_cache,
+    get_osha_limits,
+    get_pubchem_cache,
+    get_summary_cache,
+    set_conversation_cache,
+    set_osha_limits,
+    set_pubchem_cache,
+    set_summary_cache,
 )
-from src.agents.hardware_agent import run_hardware_agent, _mcp_check
-from src.agents.chemical_agent import run_chemical_agent, check_single_chemical
-from src.core.copilot import copilot_chat
+from src.utils.ghs_rules import (
+    determine_overall_signal_word,
+    get_carcinogen_info,
+    get_un_transport_info,
+    load_pictogram_svg,
+)
 
 
 class TestGHSRules(unittest.TestCase):
@@ -125,7 +124,8 @@ class TestInfrastructureCache(unittest.TestCase):
         self.assertEqual(cached["limit_ppm"], 50.0)
 
 
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
 
 class TestHardwareAgent(unittest.IsolatedAsyncioTestCase):
 

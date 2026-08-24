@@ -25,19 +25,20 @@ FAIL-CLOSED PHILOSOPHY:
 """
 
 import asyncio
-import time
-import re
-import os
 import json
-from tavily import TavilyClient
-from src.core.state import AgentState
-from src.core.models import ChemicalFlag
-from src.infrastructure.rag import query_regulations
-from src.infrastructure.cache import get_osha_limits, set_osha_limits
-from src.core.constants import BOILING_POINTS_CELSIUS, MASTER_CHEMICAL_DATABASE
-from src.core.logger import logger
-from src.infrastructure.llm_client import chat as llm_chat
+import os
+import re
+import time
 
+from tavily import TavilyClient
+
+from src.core.constants import MASTER_CHEMICAL_DATABASE
+from src.core.logger import logger
+from src.core.models import ChemicalFlag
+from src.core.state import AgentState
+from src.infrastructure.cache import get_osha_limits, set_osha_limits
+from src.infrastructure.llm_client import chat as llm_chat
+from src.infrastructure.rag import query_regulations
 
 # Compiled regex patterns
 _CONC_VAL_PATTERN = re.compile(r'[\d.]+')

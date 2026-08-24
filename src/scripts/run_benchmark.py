@@ -1,18 +1,33 @@
-import os
-import json
+"""
+ChemShield AI — Ragas Benchmarking & Evaluation Harness.
+
+Executes quantitative evaluations across benchmark datasets:
+- Evaluates multi-agent supervisor decisions across test scenarios
+- Calculates Faithfulness and Answer Relevancy using Ragas
+- Measures accuracy against expected compliance approval statuses
+- Emits results to `evaluation_results.json`
+"""
+
 import asyncio
-from datasets import Dataset
-from ragas import evaluate
-from ragas.metrics import faithfulness, answer_relevancy
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+import json
+import os
 import sys
+
+from datasets import Dataset
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from ragas import evaluate
+from ragas.metrics import answer_relevancy, faithfulness
 
 # Ensure project root is in path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.agents.supervisor import run_supervisor
 
-async def run_benchmark():
+
+async def run_benchmark() -> None:
+    """
+    Execute end-to-end benchmark suite over `benchmark_dataset.jsonl` using Ragas.
+    """
     dataset_path = "benchmark_dataset.jsonl"
     
     if not os.path.exists(dataset_path):

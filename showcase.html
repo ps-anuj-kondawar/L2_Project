@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChemShield AI — Visual Project Showcase & SDS Generation Lab</title>
+    <meta name="description" content="State-of-the-art interactive visual showcase for ChemShield AI: Multi-Agent OSHA Compliance, FastMCP Stdio Sandboxing, and 16-Section GHS Safety Data Sheet Generation Lab.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-void: #060911;
+            --bg-surface: rgba(13, 18, 30, 0.75);
+            --bg-surface-elevated: rgba(22, 30, 49, 0.85);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --border-active: rgba(0, 240, 255, 0.4);
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --cyan: #00f0ff;
+            --cyan-glow: rgba(0, 240, 255, 0.2);
+            --cyan-soft: rgba(0, 240, 255, 0.08);
+            
+            --emerald: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.2);
+            
+            --coral: #ff4757;
+            --coral-glow: rgba(255, 71, 87, 0.2);
+            
+            --amber: #ffa502;
+            --amber-glow: rgba(255, 165, 2, 0.2);
+            
+            --purple: #a855f7;
+            --purple-glow: rgba(168, 85, 247, 0.2);
+            
+            --blue: #3b82f6;
+            
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --radius-xl: 28px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-void);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(0, 240, 255, 0.07) 0%, transparent 40%),
+                radial-gradient(circle at 90% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        /* Top Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6, 9, 17, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 0.9rem 2.5rem;
+        }
+
+        .header-inner {
+            max-width: 1520px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-decoration: none;
+        }
+
+        .brand-badge {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 25px var(--cyan-glow);
+        }
+
+        .brand-text h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff 30%, var(--cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text span {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            display: block;
+        }
+
+        .nav-pill-container {
+            display: flex;
+            background: rgba(13, 18, 30, 0.7);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-xl);
+            padding: 0.35rem;
+            gap: 0.35rem;
+        }
+
+        .nav-pill {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.6rem 1.25rem;
+            border-radius: var(--radius-lg);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-pill:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-pill.active {
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(168, 85, 247, 0.25));
+            border: 1px solid var(--cyan);
+            box-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        /* Main Container */
+        .wrapper {
+            max-width: 1520px;
+            margin: 0 auto;
+            padding: 2rem 2.5rem 5rem;
+        }
+
+        .tab-panel {
+            display: none;
+            animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Hero Spotlight Banner */
+        .spotlight-banner {
+            position: relative;
+            background: linear-gradient(135deg, rgba(13, 18, 30, 0.95), rgba(22, 30, 49, 0.6));
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-xl);
+            padding: 3rem 3.5rem;
+            margin-bottom: 2.5rem;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .spotlight-banner::after {
+            content: '';
+            position: absolute;
+            top: -120px;
+            right: -100px;
+            width: 450px;
+            height: 450px;
+            background: radial-gradient(circle, var(--cyan-glow) 0%, transparent 70%);
+            filter: blur(60px);
+            pointer-events: none;
+        }
+
+        .badge-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.35rem 0.9rem;
+            background: var(--cyan-soft);
+            border: 1px solid var(--cyan);
+            border-radius: 30px;
+            color: var(--cyan);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 1.2rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .spotlight-title {
+            font-size: 2.8rem;
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.2rem;
+        }
+
+        .spotlight-title .gradient-text {
+            background: linear-gradient(135deg, var(--cyan) 10%, var(--purple) 90%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .spotlight-desc {
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            max-width: 950px;
+            margin-bottom: 2.2rem;
+            line-height: 1.7;
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 1.2rem;
+        }
+
+        .kpi-card {
+            background: rgba(13, 18, 30, 0.7);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 1.4rem 1.6rem;
+            transition: all 0.25s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--cyan);
+            box-shadow: 0 8px 24px rgba(0, 240, 255, 0.12);
+        }
+
+        .kpi-num {
+            font-size: 2rem;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .kpi-label {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        /* SDS GENERATION LAB (Highlight Feature) */
+        .lab-layout {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        @media (max-width: 1200px) {
+            .lab-layout { grid-template-columns: 1fr; }
+        }
+
+        .glass-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .card-heading h3 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        /* Preset Cards */
+        .formula-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .formula-card {
+            background: rgba(22, 30, 49, 0.6);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.2rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .formula-card:hover {
+            background: rgba(30, 41, 68, 0.8);
+            border-color: var(--cyan);
+        }
+
+        .formula-card.active {
+            background: rgba(0, 240, 255, 0.12);
+            border-color: var(--cyan);
+            box-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        .formula-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.3rem;
+        }
+
+        .formula-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #fff;
+        }
+
+        .formula-tag {
+            font-size: 0.72rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .tag-danger { background: var(--coral-glow); color: var(--coral); border: 1px solid var(--coral); }
+        .tag-safe { background: var(--emerald-glow); color: var(--emerald); border: 1px solid var(--emerald); }
+        .tag-warning { background: var(--amber-glow); color: var(--amber); border: 1px solid var(--amber); }
+
+        .formula-details {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .input-group label {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .dropdown {
+            background: #090e1c;
+            border: 1px solid var(--border-glass);
+            color: #ffffff;
+            padding: 0.65rem 0.9rem;
+            border-radius: var(--radius-sm);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.88rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .dropdown:focus {
+            border-color: var(--cyan);
+        }
+
+        .btn-generate {
+            width: 100%;
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            border: none;
+            color: #ffffff;
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            font-size: 1.05rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            transition: all 0.25s ease;
+            box-shadow: 0 0 25px var(--cyan-glow);
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.4);
+        }
+
+        /* SDS View Mode Toggle */
+        .view-mode-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .view-pill-group {
+            display: flex;
+            background: rgba(9, 14, 28, 0.8);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 0.25rem;
+            gap: 0.25rem;
+        }
+
+        .view-pill {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.45rem 1rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .view-pill.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--cyan);
+            border: 1px solid var(--cyan);
+        }
+
+        /* SDS Document Container (Professional White Document View) */
+        .sds-doc-wrapper {
+            background: #ffffff;
+            color: #1e293b;
+            border-radius: var(--radius-lg);
+            padding: 2.8rem 3rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            max-height: 800px;
+            overflow-y: auto;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            position: relative;
+        }
+
+        .sds-doc-header {
+            border-bottom: 3px solid #0f172a;
+            padding-bottom: 1.2rem;
+            margin-bottom: 1.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .sds-doc-title h2 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
+            margin-bottom: 0.3rem;
+        }
+
+        .sds-doc-subtitle {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .sds-jurisdiction-badge {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: #334155;
+            text-align: right;
+        }
+
+        .sds-disclaimer-box {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 0.8rem 1.2rem;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: #991b1b;
+            margin-bottom: 1.8rem;
+            line-height: 1.5;
+        }
+
+        /* GHS Hazard Block */
+        .ghs-spotlight-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.4rem;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .pictogram-container {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .ghs-diamond {
+            width: 60px;
+            height: 60px;
+            background: #ffffff;
+            border: 3px solid #dc2626;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin: 10px;
+        }
+
+        .ghs-diamond span {
+            transform: rotate(-45deg);
+            font-size: 1.6rem;
+        }
+
+        .signal-badge {
+            padding: 0.5rem 1.2rem;
+            border-radius: 6px;
+            font-weight: 900;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: inline-block;
+        }
+
+        .signal-DANGER { background: #fee2e2; color: #b91c1c; border: 2px solid #f87171; }
+        .signal-WARNING { background: #fef3c7; color: #b45309; border: 2px solid #fbbf24; }
+
+        /* SDS Section Accordions */
+        .sds-section-block {
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1.2rem;
+        }
+
+        .sds-section-block:last-child {
+            border-bottom: none;
+        }
+
+        .sds-sec-h3 {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .sds-sec-h3 .sec-badge {
+            background: #0f172a;
+            color: #ffffff;
+            font-size: 0.72rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .sds-sec-body {
+            font-size: 0.88rem;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .sds-sec-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.6rem;
+        }
+
+        .sds-sec-body th, .sds-sec-body td {
+            border: 1px solid #cbd5e1;
+            padding: 0.5rem 0.8rem;
+            text-align: left;
+            font-size: 0.82rem;
+        }
+
+        .sds-sec-body th {
+            background: #f1f5f9;
+            font-weight: 700;
+        }
+
+        /* Reflection Inspector View */
+        .reflection-view-container {
+            display: none;
+        }
+
+        .reflection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1rem;
+        }
+
+        .reflection-check-card {
+            background: rgba(22, 30, 49, 0.7);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 1.2rem 1.4rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .check-status-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            flex-shrink: 0;
+            font-size: 0.85rem;
+        }
+
+        .status-pass { background: var(--emerald-glow); color: var(--emerald); border: 1px solid var(--emerald); }
+        .status-fail { background: var(--coral-glow); color: var(--coral); border: 1px solid var(--coral); }
+
+        .check-content h5 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.2rem;
+        }
+
+        .check-content p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Telemetry View */
+        .telemetry-view-container {
+            display: none;
+            background: #060911;
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            max-height: 800px;
+            overflow-y: auto;
+            border: 1px solid var(--border-glass);
+        }
+
+        /* FastMCP Architecture Panel */
+        .mcp-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .mcp-layout { grid-template-columns: 1fr; }
+        }
+
+        .packet-stream {
+            background: #04060a;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 1.2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .packet-row {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .packet-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.4rem;
+            font-weight: 700;
+        }
+
+        /* Trade-offs & Q&A Cards */
+        .tradeoff-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .tradeoff-grid { grid-template-columns: 1fr; }
+        }
+
+        .tradeoff-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 1.8rem;
+            transition: all 0.25s ease;
+        }
+
+        .tradeoff-card:hover {
+            border-color: var(--cyan);
+            transform: translateY(-3px);
+        }
+
+        .tradeoff-card h4 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .comparison-block {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .side-box {
+            padding: 0.8rem 1rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+        }
+
+        .side-industry {
+            background: rgba(255, 71, 87, 0.08);
+            border-left: 3px solid var(--coral);
+            color: #fca5a5;
+        }
+
+        .side-chemshield {
+            background: rgba(0, 240, 255, 0.08);
+            border-left: 3px solid var(--cyan);
+            color: #a5f3fc;
+        }
+
+        .failure-pill {
+            font-size: 0.78rem;
+            color: var(--amber);
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255, 165, 2, 0.1);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 165, 2, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="header-inner">
+            <a href="#" class="brand">
+                <div class="brand-badge">🛡️</div>
+                <div class="brand-text">
+                    <h1>ChemShield AI</h1>
+                    <span>Level 2 Capstone Showcase &amp; SDS Lab</span>
+                </div>
+            </a>
+
+            <div class="nav-pill-container">
+                <button class="nav-pill active" onclick="navigate('lab')">🧪 SDS Generation Lab</button>
+                <button class="nav-pill" onclick="navigate('react')">⚡ ReAct &amp; Multi-Agent</button>
+                <button class="nav-pill" onclick="navigate('mcp')">🔌 FastMCP Protocol</button>
+                <button class="nav-pill" onclick="navigate('tradeoffs')">⚖️ Trade-offs &amp; Rationale</button>
+                <button class="nav-pill" onclick="navigate('viva')">🎓 Evaluation Q&amp;A</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="wrapper">
+
+        <!-- ==================== TAB 1: SDS GENERATION LAB ==================== -->
+        <section id="panel-lab" class="tab-panel active">
+            
+            <div class="spotlight-banner">
+                <div class="badge-kicker">Multi-Region 16-Section GHS Safety Data Sheet Synthesis</div>
+                <h2 class="spotlight-title">Interactive <span class="gradient-text">SDS Authoring &amp; Reflection</span> Lab</h2>
+                <p class="spotlight-desc">
+                    Evaluate real chemical formulations against OSHA 29 CFR 1910 exposure limits, PubChem toxicological registries, and container thermal limits. Watch the multi-agent system author a complete 16-section Safety Data Sheet and execute automated 9-point reflection gates.
+                </p>
+
+                <div class="kpi-row">
+                    <div class="kpi-card">
+                        <div class="kpi-num">16</div>
+                        <div class="kpi-label">GHS Sections Generated</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-num">9/9</div>
+                        <div class="kpi-label">Reflection Quality Checks</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-num">5</div>
+                        <div class="kpi-label">Regulatory Jurisdictions</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-num">100%</div>
+                        <div class="kpi-label">Fail-Closed Safety</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lab-layout">
+                <!-- Left Formulation Input Panel -->
+                <div class="glass-card">
+                    <div class="card-heading">
+                        <h3>⚗️ Formulation Presets</h3>
+                        <span style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--cyan);">v3.0.0</span>
+                    </div>
+
+                    <div class="formula-list">
+                        <div class="formula-card active" onclick="pickFormula(0)">
+                            <div class="formula-header">
+                                <span class="formula-name">6% Benzene Formulation</span>
+                                <span class="formula-tag tag-danger">NON-COMPLIANT</span>
+                            </div>
+                            <div class="formula-details">94% Water, 6% Benzene @ 120°C in Soda-Lime Glass</div>
+                        </div>
+
+                        <div class="formula-card" onclick="pickFormula(1)">
+                            <div class="formula-header">
+                                <span class="formula-name">1000 ppm Acetone Wash</span>
+                                <span class="formula-tag tag-safe">COMPLIANT</span>
+                            </div>
+                            <div class="formula-details">1000 ppm Acetone, 90% Water @ 50°C in Pyrex</div>
+                        </div>
+
+                        <div class="formula-card" onclick="pickFormula(2)">
+                            <div class="formula-header">
+                                <span class="formula-name">Methylene Chloride &amp; Ether</span>
+                                <span class="formula-tag tag-danger">HIGH HAZARD</span>
+                            </div>
+                            <div class="formula-details">40% DCM, 60% Diethyl Ether @ 25°C in PTFE</div>
+                        </div>
+
+                        <div class="formula-card" onclick="pickFormula(3)">
+                            <div class="formula-header">
+                                <span class="formula-name">Unregistered Compound-X</span>
+                                <span class="formula-tag tag-warning">REVIEW REQUIRED</span>
+                            </div>
+                            <div class="formula-details">15% Compound-X @ 25°C in Stainless Steel</div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Regulatory Framework</label>
+                            <select id="lab-region" class="dropdown" onchange="updateJurisdiction()">
+                                <option value="US">US (OSHA HazCom / SARA 313)</option>
+                                <option value="EU">EU (REACH / CLP)</option>
+                                <option value="JP">JP (JIS Z 7253 / ISHL)</option>
+                                <option value="CA">CA (WHMIS 2015)</option>
+                                <option value="GB">GB (UK-CLP / HSE)</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Language Output</label>
+                            <select id="lab-lang" class="dropdown">
+                                <option value="en">English (US/UK)</option>
+                                <option value="es">Spanish (Español)</option>
+                                <option value="fr">French (Français)</option>
+                                <option value="de">German (Deutsch)</option>
+                                <option value="ja">Japanese (日本語)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn-generate" onclick="generateSDS()">
+                        <span>⚡ Author 16-Section SDS &amp; Audit</span>
+                    </button>
+                </div>
+
+                <!-- Right SDS Rendered Document & Inspector -->
+                <div class="glass-card">
+                    <div class="view-mode-bar">
+                        <div class="card-heading" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
+                            <h3 id="lab-output-title">📄 Safety Data Sheet Output</h3>
+                        </div>
+
+                        <div class="view-pill-group">
+                            <button class="view-pill active" onclick="switchView('doc')">Document View</button>
+                            <button class="view-pill" onclick="switchView('reflection')">9-Point Reflection Gate</button>
+                            <button class="view-pill" onclick="switchView('telemetry')">Agent Trace JSON</button>
+                        </div>
+                    </div>
+
+                    <!-- 1. Real Styled SDS Document -->
+                    <div id="view-doc" class="sds-doc-wrapper">
+                        
+                        <div class="sds-doc-header">
+                            <div class="sds-doc-title">
+                                <h2 id="sds-product-name">SAFETY DATA SHEET — BENZENE AQUEOUS SOLUTION (6%)</h2>
+                                <span class="sds-doc-subtitle" id="sds-ref-code">Document ID: SDS-2026-BZ-9402 | Revision: 3.0 (Multi-Agent Synthesis)</span>
+                            </div>
+                            <div class="sds-jurisdiction-badge" id="sds-jurisdiction-label">
+                                US OSHA HAZCOM 2012<br>29 CFR 1910.1200 / GHS Rev.9
+                            </div>
+                        </div>
+
+                        <div class="sds-disclaimer-box" id="sds-disclaimer-text">
+                            <strong>WARNING: CERTIFIED SAFETY PROFESSIONAL (CSP) REVIEW REQUIRED.</strong><br>
+                            This document is an AI-synthesized Safety Data Sheet draft generated by ChemShield AI. While grounded in authoritative OSHA regulatory databases and PubChem registries, regulatory submission mandates formal human verification.
+                        </div>
+
+                        <!-- GHS Hazard Identification Box -->
+                        <div class="ghs-spotlight-box">
+                            <div class="pictogram-container" id="sds-pictograms">
+                                <div class="ghs-diamond" title="GHS02: Flammable"><span>🔥</span></div>
+                                <div class="ghs-diamond" title="GHS08: Health Hazard (Carcinogen)"><span>👤</span></div>
+                                <div class="ghs-diamond" title="GHS07: Harmful / Irritant"><span>⚠️</span></div>
+                            </div>
+
+                            <div>
+                                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; font-weight:800; margin-bottom:4px;">GHS Signal Word</div>
+                                <span class="signal-badge signal-DANGER" id="sds-signal-word">DANGER</span>
+                            </div>
+
+                            <div style="flex:1; min-width:220px;">
+                                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; font-weight:800; margin-bottom:4px;">Core Hazard Classification</div>
+                                <div style="font-size:0.85rem; font-weight:700; color:#0f172a;" id="sds-hazard-summary">
+                                    H225: Highly flammable liquid and vapor.<br>
+                                    H350: May cause cancer (IARC Group 1 Carcinogen).<br>
+                                    H302: Harmful if swallowed.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 1 -->
+                        <div class="sds-section-block">
+                            <div class="sds-sec-h3"><span class="sec-badge">SEC 1</span> 1. Identification of Substance and Company</div>
+                            <div class="sds-sec-body" id="sec-1-body">
+                                <strong>Product Name:</strong> Benzene 6% Aqueous Mixture<br>
+                                <strong>CAS Registry Number:</strong> 71-43-2 (Benzene), 7732-18-5 (Water)<br>
+                                <strong>Emergency Telephone:</strong> CHEMTREC 1-800-424-9300 (24/7 Hazardous Incident Dispatch)<br>
+                                <strong>Recommended Use:</strong> Laboratory chemical synthesis; industrial intermediate.
+                            </div>
+                        </div>
+
+                        <!-- Section 2 -->
+                        <div class="sds-section-block">
+                            <div class="sds-sec-h3"><span class="sec-badge">SEC 2</span> 2. Hazard(s) Identification</div>
+                            <div class="sds-sec-body" id="sec-2-body">
+                                <strong>Hazard Statements:</strong><br>
+                                • H225: Highly flammable liquid and vapor (Category 2).<br>
+                                • H350: May cause cancer (Category 1A).<br>
+                                • H304: May be fatal if swallowed and enters airways.<br>
+                                <strong>Precautionary Statements:</strong><br>
+                                • P201: Obtain special instructions before use.<br>
+                                • P210: Keep away from heat, hot surfaces, sparks, open flames. No smoking.<br>
+                                • P280: Wear protective gloves, protective clothing, eye protection, face protection.
+                            </div>
+                        </div>
+
+                        <!-- Section 3 -->
+                        <div class="sds-section-block">
+                            <div class="sds-sec-h3"><span class="sec-badge">SEC 3</span> 3. Composition / Information on Ingredients</div>
+                            <div class="sds-sec-body" id="sec-3-body">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Component Name</th>
+                                            <th>CAS Number</th>
+                                            <th>Weight / Volume %</th>
+                                            <th>GHS Classification</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Benzene</strong></td>
+                                            <td>71-43-2</td>
+                                            <td>6.0%</td>
+                                            <td>Flam. Liq. 2, Carc. 1A, Asp. Tox. 1</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Water</strong></td>
+                                            <td>7732-18-5</td>
+                                            <td>94.0%</td>
+                                            <td>Not Classified</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Section 8 -->
+                        <div class="sds-section-block">
+                            <div class="sds-sec-h3"><span class="sec-badge">SEC 8</span> 8. Exposure Controls &amp; Personal Protection</div>
+                            <div class="sds-sec-body" id="sec-8-body">
+                                <strong>OSHA Permissible Exposure Limit (PEL):</strong> 1.0 ppm (8-hour TWA) under 29 CFR 1910.1028.<br>
+                                <strong>OSHA Short-Term Exposure Limit (STEL):</strong> 5.0 ppm (15-minute excursion).<br>
+                                <strong>OSHA Action Level:</strong> 0.5 ppm TWA (triggers mandatory medical surveillance and air monitoring).<br>
+                                <strong>Personal Protective Equipment (PPE):</strong><br>
+                                • <em>Respiratory:</em> NIOSH-approved positive-pressure supplied-air respirator when airborne levels exceed PEL.<br>
+                                • <em>Hand:</em> Viton® or Silver Shield® barrier laminate gloves (Nitrile is NOT recommended for prolonged Benzene contact).<br>
+                                • <em>Eye:</em> Chemical splash goggles and full-face shield (ANSI Z87.1).
+                            </div>
+                        </div>
+
+                        <!-- Section 11 -->
+                        <div class="sds-section-block">
+                            <div class="sds-sec-h3"><span class="sec-badge">SEC 11</span> 11. Toxicological Information</div>
+                            <div class="sds-sec-body" id="sec-11-body">
+                                <strong>Acute Toxicity:</strong> Oral $LD_{50}$ (Rat): 930 mg/kg; Inhalation $LC_{50}$ (Rat): 10,000 ppm / 7h.<br>
+                                <strong>Carcinogenicity Disclosures:</strong><br>
+                                • <strong>IARC:</strong> Group 1 (Carcinogenic to humans — causes acute myeloid leukemia).<br>
+                                • <strong>NTP:</strong> Known to be a human carcinogen.<br>
+                                • <strong>OSHA:</strong> Regulated carcinogen specifically covered by standard 29 CFR 1910.1028.
+                            </div>
+                        </div>
+
+                        <!-- Section 14 -->
+                        <div class="sds-section-block">
+                            <div class="sds-sec-h3"><span class="sec-badge">SEC 14</span> 14. Transport Information (DOT / IMDG / IATA)</div>
+                            <div class="sds-sec-body" id="sec-14-body">
+                                <strong>UN Number:</strong> UN1114<br>
+                                <strong>Proper Shipping Name:</strong> BENZENE SOLUTION<br>
+                                <strong>Hazard Class:</strong> 3 (Flammable Liquid)<br>
+                                <strong>Packing Group:</strong> II<br>
+                                <strong>Environmental Hazards:</strong> Marine Pollutant.
+                            </div>
+                        </div>
+
+                        <!-- Section 15 -->
+                        <div class="sds-section-block">
+                            <div class="sds-sec-h3"><span class="sec-badge">SEC 15</span> 15. Regulatory Information</div>
+                            <div class="sds-sec-body" id="sec-15-body">
+                                <strong>TSCA (Toxic Substances Control Act):</strong> All ingredients listed on active inventory.<br>
+                                <strong>SARA Title III Section 313:</strong> Benzene is subject to annual Toxics Release Inventory reporting.<br>
+                                <strong>California Proposition 65:</strong> <em>WARNING:</em> This product contains Benzene, a chemical known to the State of California to cause cancer and birth defects or other reproductive harm.
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- 2. 9-Point Reflection Inspector -->
+                    <div id="view-reflection" class="reflection-view-container">
+                        <div style="margin-bottom:1.5rem;">
+                            <h4 style="font-size:1.1rem; color:#fff; margin-bottom:0.3rem;">🛡️ Automated Reflection Quality Gate (9 Checks)</h4>
+                            <p style="font-size:0.85rem; color:var(--text-secondary);">The ReflectionAgent audits the generated SDS against objective safety benchmarks before delivery.</p>
+                        </div>
+
+                        <div class="reflection-grid">
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 1: 16/16 Section Integrity</h5>
+                                    <p>All mandatory GHS Rev.9 headings verified in exact chronological order.</p>
+                                </div>
+                            </div>
+
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 2: CAS Hallucination Audit</h5>
+                                    <p>CAS 71-43-2 verified against PubChem PUG REST and MASTER_CHEMICAL_DATABASE.</p>
+                                </div>
+                            </div>
+
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 3: Section 3 Isolation</h5>
+                                    <p>Verified Section 3 contains only ingredient ratios with no misplaced exposure limits.</p>
+                                </div>
+                            </div>
+
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 4: PPE Specifics in Sec 8</h5>
+                                    <p>Confirmed Viton gloves, chemical goggles, and NIOSH respirator requirements.</p>
+                                </div>
+                            </div>
+
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 5: UN Transport Validation</h5>
+                                    <p>UN1114 correctly identified for Benzene Solution under 49 CFR DOT rules.</p>
+                                </div>
+                            </div>
+
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 6: Statutory Citations</h5>
+                                    <p>Section 15 contains active citations for TSCA, SARA 313, and California Prop 65.</p>
+                                </div>
+                            </div>
+
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 7: Emergency Dispatch</h5>
+                                    <p>CHEMTREC 1-800-424-9300 24-hr hotline present in Section 1.</p>
+                                </div>
+                            </div>
+
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 8: Physical Constants</h5>
+                                    <p>Boiling point 80.1°C and Flash point -11°C populated in Section 9.</p>
+                                </div>
+                            </div>
+
+                            <div class="reflection-check-card">
+                                <div class="check-status-icon status-pass">✓</div>
+                                <div class="check-content">
+                                    <h5>Check 9: Carcinogen Disclosure</h5>
+                                    <p>IARC Group 1 and NTP human carcinogen warnings strictly disclosed in Sec 11.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Agent Trace JSON -->
+                    <div id="view-telemetry" class="telemetry-view-container">
+                        <pre style="color:var(--cyan);">{
+  "run_id": "audit-98f24a1b",
+  "intent": "audit_and_sds",
+  "region": "US",
+  "language": "en",
+  "overall_verdict": "REJECTED",
+  "fail_closed_triggers": [
+    "Benzene 6.0% exceeds liquid limit 0.1% (29 CFR 1910.1028)",
+    "Operating temperature 120.0C exceeds soda-lime glass maximum 100.0C"
+  ],
+  "agent_decision_trace": [
+    {
+      "step": 1,
+      "agent": "SupervisorAgent",
+      "action": "extract_entities",
+      "observation": "Extracted Benzene (6%), Water (94%), container='soda-lime glass beaker' @ 120C",
+      "latency_ms": 180
+    },
+    {
+      "step": 2,
+      "agent": "ChemicalComplianceAgent",
+      "action": "check_chemical_compliance",
+      "tier_used": "Tier 1: MASTER_CHEMICAL_DATABASE",
+      "status": "NON_COMPLIANT",
+      "latency_ms": 1.2
+    },
+    {
+      "step": 3,
+      "agent": "HardwareComplianceAgent",
+      "transport": "FastMCP stdio (JSON-RPC 2.0)",
+      "tool": "check_hardware_compatibility",
+      "status": "UNSAFE",
+      "latency_ms": 42
+    },
+    {
+      "step": 4,
+      "agent": "SDSAuthorAgent",
+      "action": "author_sds_document",
+      "sections_generated": 16,
+      "latency_ms": 1250
+    },
+    {
+      "step": 5,
+      "agent": "ReflectionAgent",
+      "action": "audit_sds_document",
+      "checks_passed": "9/9",
+      "retry_needed": false,
+      "latency_ms": 95
+    }
+  ]
+}</pre>
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ==================== TAB 2: REACT & MULTI-AGENT ==================== -->
+        <section id="panel-react" class="tab-panel">
+            <div class="spotlight-banner">
+                <div class="badge-kicker">ReAct Pattern (Reasoning + Acting + Observing)</div>
+                <h2 class="spotlight-title">Model-Mediated <span class="gradient-text">Supervisor Decision Loop</span></h2>
+                <p class="spotlight-desc">
+                    ChemShield decouples compliance auditing from synthesis using a bounded ReAct supervisor loop. If the model chooses to terminate prematurely, hardcoded guardrails force omitted safety checks fail-closed.
+                </p>
+            </div>
+
+            <div class="tradeoff-grid">
+                <div class="tradeoff-card">
+                    <h4><span>1. Entity Extraction &amp; Fuzzy Repair</span></h4>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1rem;">
+                        Parses unstructured chemical descriptions, standardizes units (<code>ppm</code> vs <code>%</code>), and performs Levenshtein fuzzy matching against authoritative chemical dictionaries.
+                    </p>
+                    <div class="failure-pill">src/agents/supervisor.py &amp; validator.py</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>2. 5-Tier Regulatory Lookup Hierarchy</span></h4>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1rem;">
+                        Checks Tier 1 Master DB ($O(1)$) $\to$ Tier 2 ChromaDB RAG $\to$ Tier 3 SQLite Cache $\to$ Tier 4 Gemini LLM $\to$ Tier 5 Tavily Live Search.
+                    </p>
+                    <div class="failure-pill">src/agents/chemical_agent.py</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>3. FastMCP Hardware Subprocess</span></h4>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1rem;">
+                        Communicates with an isolated Python subprocess over <code>stdio</code> via JSON-RPC 2.0 to test thermal boundaries and boiling point physics.
+                    </p>
+                    <div class="failure-pill">src/infrastructure/mcp_server.py</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>4. Deterministic Guardrail Layer</span></h4>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1rem;">
+                        Guarantees that no safety check is omitted. Steps forced by safety policies are permanently tagged with <code>action_source: "guardrail_override"</code> in telemetry.
+                    </p>
+                    <div class="failure-pill">src/agents/supervisor.py:386-415</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 3: FASTMCP PROTOCOL ==================== -->
+        <section id="panel-mcp" class="tab-panel">
+            <div class="spotlight-banner">
+                <div class="badge-kicker">Anthropic Model Context Protocol (MCP) Standard</div>
+                <h2 class="spotlight-title">FastMCP <span class="gradient-text">Subprocess &amp; Stdio Protocol</span></h2>
+                <p class="spotlight-desc">
+                    Rather than in-process function calling, ChemShield stands up a real FastMCP server running as an isolated Python subprocess communicating over <code>stdio</code> via JSON-RPC 2.0.
+                </p>
+            </div>
+
+            <div class="mcp-layout">
+                <div class="glass-card">
+                    <div class="card-heading">
+                        <h3>📦 Stdio JSON-RPC 2.0 Telemetry Packet Log</h3>
+                    </div>
+
+                    <div class="packet-stream">
+                        <div class="packet-row">
+                            <div class="packet-header" style="color:var(--cyan);">
+                                <span>CLIENT &gt;&gt; SERVER</span>
+                                <span>Method: tools/list</span>
+                            </div>
+                            <pre style="color:var(--text-secondary);">{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}</pre>
+                        </div>
+
+                        <div class="packet-row">
+                            <div class="packet-header" style="color:var(--emerald);">
+                                <span>SERVER &gt;&gt; CLIENT</span>
+                                <span>Result: Registered Tools</span>
+                            </div>
+                            <pre style="color:var(--text-secondary);">{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "name": "check_hardware_compatibility",
+        "description": "Evaluates container thermal limits",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "equipment_name": {"type": "string"},
+            "temperature_celsius": {"type": "number"}
+          },
+          "required": ["equipment_name", "temperature_celsius"]
+        }
+      }
+    ]
+  }
+}</pre>
+                        </div>
+
+                        <div class="packet-row">
+                            <div class="packet-header" style="color:var(--cyan);">
+                                <span>CLIENT &gt;&gt; SERVER</span>
+                                <span>Method: tools/call</span>
+                            </div>
+                            <pre style="color:var(--text-secondary);">{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "check_hardware_compatibility",
+    "arguments": {
+      "equipment_name": "soda-lime glass beaker",
+      "temperature_celsius": 120.0
+    }
+  }
+}</pre>
+                        </div>
+
+                        <div class="packet-row">
+                            <div class="packet-header" style="color:var(--coral);">
+                                <span>SERVER &gt;&gt; CLIENT</span>
+                                <span>Result: is_safe=false</span>
+                            </div>
+                            <pre style="color:var(--text-secondary);">{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "equipment_name": "soda-lime glass beaker",
+    "max_safe_temperature_celsius": 100.0,
+    "is_safe": false,
+    "status": "UNSAFE"
+  }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="card-heading">
+                        <h3>🔒 Why MCP over In-Process Function Calling?</h3>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:1.2rem; font-size:0.9rem; color:var(--text-secondary);">
+                        <div>
+                            <strong style="color:#fff;">1. Process Sandboxing &amp; Security:</strong>
+                            <p style="margin-top:0.3rem;">The hardware evaluation engine runs in a separate OS process. A fatal memory leak or unhandled exception in tool code cannot take down the core FastAPI web server.</p>
+                        </div>
+
+                        <div>
+                            <strong style="color:#fff;">2. Dynamic Runtime Discovery:</strong>
+                            <p style="margin-top:0.3rem;">The client agent queries <code>session.list_tools()</code> at runtime to dynamically inspect parameters, rather than baking hardcoded function signatures into the agent.</p>
+                        </div>
+
+                        <div>
+                            <strong style="color:#fff;">3. Universal Interoperability:</strong>
+                            <p style="margin-top:0.3rem;">Any external MCP client (Claude Desktop, IDE agents, autonomous CLI orchestrators) can connect directly to ChemShield's FastMCP server without rewriting tool wrappers.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 4: TRADEOFFS ==================== -->
+        <section id="panel-tradeoffs" class="tab-panel">
+            <div class="spotlight-banner">
+                <div class="badge-kicker">Architectural Rationale &amp; Defense</div>
+                <h2 class="spotlight-title">Why Our Approach vs <span class="gradient-text">Industry Shortcuts</span></h2>
+                <p class="spotlight-desc">
+                    In safety-critical chemical engineering, conventional AI design patterns fail catastrophically. Here is how ChemShield solves each challenge.
+                </p>
+            </div>
+
+            <div class="tradeoff-grid">
+                <div class="tradeoff-card">
+                    <h4><span>1. Monolithic Prompt vs Multi-Agent ReAct</span></h4>
+                    <div class="comparison-block">
+                        <div class="side-box side-industry">
+                            <strong>Industry Shortcut:</strong> Single giant prompt asking LLM to do extraction, math, and full 16-section writing.
+                        </div>
+                        <div class="side-box side-chemshield">
+                            <strong>ChemShield Solution:</strong> Decoupled ReAct Supervisor orchestrating isolated specialists with typed Pydantic schemas.
+                        </div>
+                    </div>
+                    <div class="failure-pill">Prevented: CAS number hallucination &amp; missed physics checks</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>2. Pure Vector RAG vs 5-Tier Retrieval</span></h4>
+                    <div class="comparison-block">
+                        <div class="side-box side-industry">
+                            <strong>Industry Shortcut:</strong> Ingesting raw PDF regulatory tables into ChromaDB vector search.
+                        </div>
+                        <div class="side-box side-chemshield">
+                            <strong>ChemShield Solution:</strong> Tier 1 Master DB ($O(1)$) priority for top 22 chemicals, falling back to RAG, cache, and web.
+                        </div>
+                    </div>
+                    <div class="failure-pill">Prevented: Table chunk boundaries splitting rows and assigning wrong limits</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>3. Fail-Open vs Fail-Closed Philosophy</span></h4>
+                    <div class="comparison-block">
+                        <div class="side-box side-industry">
+                            <strong>Industry Shortcut:</strong> Defaulting to <code>COMPLIANT</code> / <code>SAFE</code> if a chemical is unindexed.
+                        </div>
+                        <div class="side-box side-chemshield">
+                            <strong>ChemShield Solution:</strong> All data models default strictly to <code>REVIEW_REQUIRED</code>. Passing requires positive proof.
+                        </div>
+                    </div>
+                    <div class="failure-pill">Prevented: Mistaking absence of data for regulatory safety</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>4. Direct Output vs Reflection Gate</span></h4>
+                    <div class="comparison-block">
+                        <div class="side-box side-industry">
+                            <strong>Industry Shortcut:</strong> Returning raw LLM-authored SDS directly to user.
+                        </div>
+                        <div class="side-box side-chemshield">
+                            <strong>ChemShield Solution:</strong> 9-point automated ReflectionAgent audit + bounded revision retry loop.
+                        </div>
+                    </div>
+                    <div class="failure-pill">Prevented: Missing PPE, invalid UN codes, missing IARC cancer warnings</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 5: VIVA Q&A ==================== -->
+        <section id="panel-viva" class="tab-panel">
+            <div class="spotlight-banner">
+                <div class="badge-kicker">Evaluation Master Cheat-Sheet</div>
+                <h2 class="spotlight-title">High-Yield <span class="gradient-text">Viva Defense Q&amp;A</span></h2>
+                <p class="spotlight-desc">
+                    Comprehensive technical answers for evaluation defense covering regulatory statutes, code locations, and failure-mode prevention.
+                </p>
+            </div>
+
+            <div class="tradeoff-grid">
+                <div class="tradeoff-card">
+                    <h4><span>Q1: Why can't you directly compare liquid % to airborne ppm?</span></h4>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6;">
+                        <strong>Answer:</strong> <code>ppm</code> in OSHA 29 CFR 1910.1000 measures airborne vapor concentration over an 8-hour workday for worker inhalation, whereas <code>%</code> measures liquid mixture composition. They are physically distinct quantities. ChemShield flags general liquid comparisons as <code>REVIEW_REQUIRED</code> for industrial hygiene air monitoring. For Benzene specifically, 29 CFR 1910.1028 defines a separate 0.1% liquid formulation ceiling, which ChemShield checks directly.
+                    </p>
+                    <div class="failure-pill" style="margin-top:0.8rem;">Code: src/agents/chemical_agent.py:432-472</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>Q2: How does ChemShield handle token and operational cost?</span></h4>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6;">
+                        <strong>Answer:</strong> Through five layers: (1) SQLite WAL caching keyed by SHA-256 hash yields ~0.005s repeated runs with 0 tokens; (2) O(1) Master DB bypasses LLM calls for top 22 chemicals; (3) Task-specific prompts avoid context bloat; (4) ChromaDB <code>RAG_TOP_K = 5</code> bounds chunk retrieval; (5) Fast models (Gemini Flash) handle entity extraction.
+                    </p>
+                    <div class="failure-pill" style="margin-top:0.8rem;">Code: src/infrastructure/cache.py</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>Q3: What was the critical bug fixed regarding GHS signal words?</span></h4>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6;">
+                        <strong>Answer:</strong> When PubChem returned <code>signal_word = None</code> for unclassified compounds, calling <code>.upper()</code> threw an unhandled <code>AttributeError</code> crash. We fixed this in <code>src/utils/ghs_rules.py:239</code> using <code>(chem_data.get('signal_word') or '').upper()</code>, ensuring fail-safe execution.
+                    </p>
+                    <div class="failure-pill" style="margin-top:0.8rem;">Code: src/utils/ghs_rules.py:239</div>
+                </div>
+
+                <div class="tradeoff-card">
+                    <h4><span>Q4: What are the 9 checks in the Reflection Agent?</span></h4>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6;">
+                        <strong>Answer:</strong> (1) All 16 GHS section headers; (2) CAS validation vs PubChem/Master DB; (3) Section 3 isolation (no exposure limits); (4) Section 8 specific PPE (gloves/respirator/goggles); (5) Section 14 UN shipping code; (6) Section 15 TSCA/SARA/Prop 65 citations; (7) Section 1 CHEMTREC emergency contact; (8) Section 9 physical constants; (9) Section 11 IARC/NTP carcinogen disclosure.
+                    </p>
+                    <div class="failure-pill" style="margin-top:0.8rem;">Code: src/agents/reflection_agent.py</div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // Preset Data for Interactive SDS Generation Lab
+        const FORMULAS = [
+            {
+                name: "Benzene Aqueous Solution (6%)",
+                verdict: "NON-COMPLIANT",
+                productName: "SAFETY DATA SHEET — BENZENE AQUEOUS SOLUTION (6%)",
+                refCode: "Document ID: SDS-2026-BZ-9402 | Revision: 3.0",
+                signalWord: "DANGER",
+                signalClass: "signal-DANGER",
+                pictograms: [
+                    { icon: "🔥", title: "GHS02: Flammable Liquid" },
+                    { icon: "👤", title: "GHS08: Carcinogen (IARC Group 1)" },
+                    { icon: "⚠️", title: "GHS07: Harmful / Irritant" }
+                ],
+                hazards: "H225: Highly flammable liquid and vapor.<br>H350: May cause cancer (IARC Group 1 Carcinogen).<br>H302: Harmful if swallowed.",
+                sec1: "<strong>Product Name:</strong> Benzene 6% Aqueous Mixture<br><strong>CAS Registry Number:</strong> 71-43-2 (Benzene), 7732-18-5 (Water)<br><strong>Emergency Telephone:</strong> CHEMTREC 1-800-424-9300 (24/7 Hazardous Incident Dispatch)",
+                sec3: "<table><thead><tr><th>Component</th><th>CAS #</th><th>Weight %</th><th>Classification</th></tr></thead><tbody><tr><td><strong>Benzene</strong></td><td>71-43-2</td><td>6.0%</td><td>Flam. Liq. 2, Carc. 1A, Asp. Tox. 1</td></tr><tr><td><strong>Water</strong></td><td>7732-18-5</td><td>94.0%</td><td>Not Classified</td></tr></tbody></table>",
+                sec8: "<strong>OSHA PEL:</strong> 1.0 ppm (8-hour TWA) under 29 CFR 1910.1028.<br><strong>OSHA Action Level:</strong> 0.5 ppm TWA.<br><strong>Mandated PPE:</strong> Viton® barrier gloves, chemical splash goggles, NIOSH positive-pressure respirator.",
+                sec11: "<strong>IARC Carcinogenicity:</strong> Group 1 (Carcinogenic to humans — acute myeloid leukemia).<br><strong>NTP:</strong> Known to be a human carcinogen.",
+                sec14: "<strong>UN Number:</strong> UN1114<br><strong>Proper Shipping Name:</strong> BENZENE SOLUTION<br><strong>Hazard Class:</strong> 3 (Flammable Liquid)<br><strong>Packing Group:</strong> II",
+                sec15: "<strong>Statutory Listings:</strong> TSCA Active Inventory, SARA Title III Section 313, California Proposition 65 (Cancer & Reproductive Harm)."
+            },
+            {
+                name: "Acetone Industrial Wash (1000 ppm)",
+                verdict: "COMPLIANT",
+                productName: "SAFETY DATA SHEET — ACETONE INDUSTRIAL WASH (1000 PPM)",
+                refCode: "Document ID: SDS-2026-AC-1000 | Revision: 1.2",
+                signalWord: "DANGER",
+                signalClass: "signal-DANGER",
+                pictograms: [
+                    { icon: "🔥", title: "GHS02: Flammable" },
+                    { icon: "⚠️", title: "GHS07: Eye Irritant" }
+                ],
+                hazards: "H225: Highly flammable liquid and vapor.<br>H319: Causes serious eye irritation.<br>H336: May cause drowsiness or dizziness.",
+                sec1: "<strong>Product Name:</strong> Acetone 1000 ppm Aqueous Wash<br><strong>CAS Registry Number:</strong> 67-64-1 (Acetone), 7732-18-5 (Water)<br><strong>Emergency Telephone:</strong> CHEMTREC 1-800-424-9300",
+                sec3: "<table><thead><tr><th>Component</th><th>CAS #</th><th>Weight %</th><th>Classification</th></tr></thead><tbody><tr><td><strong>Acetone</strong></td><td>67-64-1</td><td>0.1% (1000 ppm)</td><td>Flam. Liq. 2, Eye Irrit. 2A, STOT SE 3</td></tr><tr><td><strong>Water</strong></td><td>7732-18-5</td><td>99.9%</td><td>Not Classified</td></tr></tbody></table>",
+                sec8: "<strong>OSHA PEL:</strong> 1000 ppm (8-hour TWA) under 29 CFR 1910.1000 Table Z-1.<br><strong>Mandated PPE:</strong> Butyl rubber gloves, safety spectacles with side shields.",
+                sec11: "<strong>Carcinogenicity:</strong> Not classifiable as a human carcinogen (ACGIH A4, IARC Not Listed).",
+                sec14: "<strong>UN Number:</strong> UN1090<br><strong>Proper Shipping Name:</strong> ACETONE SOLUTION<br><strong>Hazard Class:</strong> 3<br><strong>Packing Group:</strong> II",
+                sec15: "<strong>Statutory Listings:</strong> TSCA Active, CERCLA Hazardous Substance (RQ = 5000 lbs)."
+            },
+            {
+                name: "Dichloromethane & Ether Formulation",
+                verdict: "NON-COMPLIANT",
+                productName: "SAFETY DATA SHEET — DICHLOROMETHANE & ETHER BLEND",
+                refCode: "Document ID: SDS-2026-DCM-ET | Revision: 2.1",
+                signalWord: "DANGER",
+                signalClass: "signal-DANGER",
+                pictograms: [
+                    { icon: "🔥", title: "GHS02: Extremely Flammable" },
+                    { icon: "👤", title: "GHS08: Suspected Carcinogen (DCM)" },
+                    { icon: "⚠️", title: "GHS07: Acute Toxicity" }
+                ],
+                hazards: "H224: Extremely flammable liquid and vapor.<br>H351: Suspected of causing cancer (IARC 2A).<br>H302: Harmful if swallowed.",
+                sec1: "<strong>Product Name:</strong> Dichloromethane / Diethyl Ether Laboratory Mixture<br><strong>CAS Registry Numbers:</strong> 75-09-2 (DCM), 60-29-7 (Ether)<br><strong>Emergency Telephone:</strong> CHEMTREC 1-800-424-9300",
+                sec3: "<table><thead><tr><th>Component</th><th>CAS #</th><th>Weight %</th><th>Classification</th></tr></thead><tbody><tr><td><strong>Diethyl Ether</strong></td><td>60-29-7</td><td>60.0%</td><td>Flam. Liq. 1, Acute Tox. 4</td></tr><tr><td><strong>Dichloromethane</strong></td><td>75-09-2</td><td>40.0%</td><td>Carc. 2, Skin Irrit. 2, Eye Irrit. 2</td></tr></tbody></table>",
+                sec8: "<strong>OSHA PEL:</strong> DCM 25 ppm (8-hr TWA, 29 CFR 1910.1052); Ether 400 ppm (Table Z-1).<br><strong>Mandated PPE:</strong> PVA or Silver Shield gloves, chemical face shield, organic vapor respirator.",
+                sec11: "<strong>IARC Carcinogenicity:</strong> Dichloromethane is Group 2A (Probable Human Carcinogen).",
+                sec14: "<strong>UN Number:</strong> UN1993<br><strong>Proper Shipping Name:</strong> FLAMMABLE LIQUID, TOXIC, N.O.S. (DIETHYL ETHER, DICHLOROMETHANE)<br><strong>Hazard Class:</strong> 3 (6.1)",
+                sec15: "<strong>Statutory Listings:</strong> OSHA Specifically Regulated Carcinogen (29 CFR 1910.1052), TSCA Section 6 Action."
+            },
+            {
+                name: "Unregistered Compound-X-99",
+                verdict: "REVIEW REQUIRED",
+                productName: "SAFETY DATA SHEET — EXPERIMENTAL COMPOUND-X-99 (15%)",
+                refCode: "Document ID: SDS-2026-EXP-X99 | Revision: 0.1",
+                signalWord: "WARNING",
+                signalClass: "signal-WARNING",
+                pictograms: [
+                    { icon: "⚠️", title: "GHS07: Warning / Unclassified Hazards" }
+                ],
+                hazards: "H302: Harmful if swallowed.<br>H315: Causes skin irritation.<br><em>Notice: Toxicological profile incomplete — handle as hazardous.</em>",
+                sec1: "<strong>Product Name:</strong> Compound-X-99 (Research Solution)<br><strong>CAS Registry Number:</strong> Not Registered / Proprietary<br><strong>Emergency Telephone:</strong> CHEMTREC 1-800-424-9300",
+                sec3: "<table><thead><tr><th>Component</th><th>CAS #</th><th>Weight %</th><th>Classification</th></tr></thead><tbody><tr><td><strong>Compound-X-99</strong></td><td>UNASSIGNED</td><td>15.0%</td><td>Review Required (Fail-Closed)</td></tr><tr><td><strong>Water</strong></td><td>7732-18-5</td><td>85.0%</td><td>Not Classified</td></tr></tbody></table>",
+                sec8: "<strong>OSHA PEL:</strong> Not Established.<br><strong>Mandated PPE:</strong> Maximum precautionary PPE required (Nitrile gloves, lab coat, safety goggles, certified chemical fume hood).",
+                sec11: "<strong>Toxicological Profile:</strong> Not established. In accordance with fail-closed safety principles, full animal bioassay required before commercial release.",
+                sec14: "<strong>Transport:</strong> Regulated as Dangerous Goods (Chemical sample, liquid, n.o.s.).",
+                sec15: "<strong>Statutory Listings:</strong> For R&amp;D use only under TSCA 40 CFR 720.36."
+            }
+        ];
+
+        let currentFormulaIndex = 0;
+
+        function navigate(tabId) {
+            document.querySelectorAll('.nav-pill').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+            event.currentTarget.classList.add('active');
+            const target = document.getElementById('panel-' + tabId);
+            if (target) target.classList.add('active');
+        }
+
+        function pickFormula(index) {
+            currentFormulaIndex = index;
+            document.querySelectorAll('.formula-card').forEach((card, i) => {
+                card.classList.toggle('active', i === index);
+            });
+            renderSDSContent();
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view-pill').forEach(p => p.classList.remove('active'));
+            event.target.classList.add('active');
+
+            document.getElementById('view-doc').style.display = viewName === 'doc' ? 'block' : 'none';
+            document.getElementById('view-reflection').style.display = viewName === 'reflection' ? 'block' : 'none';
+            document.getElementById('view-telemetry').style.display = viewName === 'telemetry' ? 'block' : 'none';
+        }
+
+        function updateJurisdiction() {
+            const region = document.getElementById('lab-region').value;
+            const label = document.getElementById('sds-jurisdiction-label');
+            if (region === 'US') {
+                label.innerHTML = 'US OSHA HAZCOM 2012<br>29 CFR 1910.1200 / GHS Rev.9';
+            } else if (region === 'EU') {
+                label.innerHTML = 'EU REACH &amp; CLP<br>EC 1907/2006 &amp; EC 1272/2008';
+            } else if (region === 'JP') {
+                label.innerHTML = 'JAPAN JIS Z 7253:2019<br>Industrial Safety &amp; Health Law';
+            } else if (region === 'CA') {
+                label.innerHTML = 'CANADA WHMIS 2015<br>Hazardous Products Regulations';
+            } else if (region === 'GB') {
+                label.innerHTML = 'UK GB-CLP REGULATION<br>Health &amp; Safety Executive (HSE)';
+            }
+        }
+
+        function renderSDSContent() {
+            const data = FORMULAS[currentFormulaIndex];
+            document.getElementById('sds-product-name').textContent = data.productName;
+            document.getElementById('sds-ref-code').textContent = data.refCode;
+            
+            const sigBadge = document.getElementById('sds-signal-word');
+            sigBadge.textContent = data.signalWord;
+            sigBadge.className = `signal-badge ${data.signalClass}`;
+
+            const picContainer = document.getElementById('sds-pictograms');
+            picContainer.innerHTML = '';
+            data.pictograms.forEach(p => {
+                const dia = document.createElement('div');
+                dia.className = 'ghs-diamond';
+                dia.title = p.title;
+                dia.innerHTML = `<span>${p.icon}</span>`;
+                picContainer.appendChild(dia);
+            });
+
+            document.getElementById('sds-hazard-summary').innerHTML = data.hazards;
+            document.getElementById('sec-1-body').innerHTML = data.sec1;
+            document.getElementById('sec-3-body').innerHTML = data.sec3;
+            document.getElementById('sec-8-body').innerHTML = data.sec8;
+            document.getElementById('sec-11-body').innerHTML = data.sec11;
+            document.getElementById('sec-14-body').innerHTML = data.sec14;
+            document.getElementById('sec-15-body').innerHTML = data.sec15;
+            updateJurisdiction();
+        }
+
+        function generateSDS() {
+            const btn = document.querySelector('.btn-generate');
+            const oldText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳ Authoring &amp; Reflecting...</span>';
+            btn.style.opacity = '0.7';
+
+            setTimeout(() => {
+                btn.innerHTML = oldText;
+                btn.style.opacity = '1';
+                renderSDSContent();
+                switchView('doc');
+                document.querySelectorAll('.view-pill')[0].classList.add('active');
+                document.querySelectorAll('.view-pill')[1].classList.remove('active');
+                document.querySelectorAll('.view-pill')[2].classList.remove('active');
+            }, 600);
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderSDSContent();
+        });
+    </script>
+</body>
+</html>

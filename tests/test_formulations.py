@@ -1,10 +1,16 @@
-import unittest
-import asyncio
+"""
+ChemShield AI — Formulation Compliance Verification Test Suite.
+
+Validates end-to-end supervisor compliance audits across diverse benchmark
+formulations (compliant, non-compliant, boundary conditions, and chemical mixtures).
+"""
+
 import json
+import unittest
+from unittest.mock import AsyncMock, patch
+
 from src.agents.supervisor import run_supervisor
 from src.core.models import PubChemData
-
-from unittest.mock import patch, AsyncMock
 
 
 def _make_null_pubchem(name: str) -> PubChemData:

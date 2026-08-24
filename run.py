@@ -1,3 +1,10 @@
+"""
+ChemShield AI — Main Application Entry Point.
+
+Launches the Uvicorn ASGI server hosting the ChemShield AI FastAPI platform.
+Configuration parameters (HOST, PORT, ENV) can be overridden via environment variables.
+"""
+
 import os
 import sys
 import uvicorn
@@ -10,3 +17,4 @@ if __name__ == "__main__":
     reload = os.getenv("ENV", "development") == "development"
     print(f"Launching ChemShield AI FastAPI Platform on http://{host}:{port}...")
     uvicorn.run("src.api.server:app", host=host, port=port, reload=reload)
+

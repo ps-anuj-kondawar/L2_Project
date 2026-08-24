@@ -1,22 +1,41 @@
+"""
+ChemShield AI — Core Domain Data Models & Schemas.
+
+Defines Pydantic v2 schemas for all pipeline inputs, intermediate entities,
+audit compliance reports, PubChem intelligence data, GHS SDS structures,
+and execution telemetry traces.
+
+All schemas enforce strict type validation and explicit field descriptions
+to support serializability, OpenAPI spec generation, and LLM JSON-mode parsing.
+"""
+
 from enum import Enum
+
 from pydantic import BaseModel, Field
 
+
 class Intent(str, Enum):
+    """Workflow execution intent requested by the user or client."""
     AUDIT = "audit"
     SDS = "sds"
     FULL = "full"
     AUDIT_AND_SDS = "audit_and_sds"
 
+
 class ExtractedChemical(BaseModel):
+    """Chemical component entity extracted from laboratory input text."""
     name: str = Field(description="Name of the chemical")
     concentration: str | None = Field(default=None, description="Detected concentration, e.g., '12%' or '500 ppm'")
 
+
 class ExtractedHardware(BaseModel):
+    """Laboratory apparatus or container entity extracted from input text."""
     name: str = Field(description="Name of the container or equipment")
     target_temperature_celsius: float | None = Field(default=None, description="Target operating temperature in Celsius")
 
 
 class ChemicalFlag(BaseModel):
+    """Regulatory compliance assessment finding for an individual chemical."""
     chemical_name: str = Field(
         description="The name of the chemical as found in the user input."
     )
@@ -48,6 +67,7 @@ class ChemicalFlag(BaseModel):
     )
 
 class HardwareFlag(BaseModel):
+    """Thermal compatibility check finding for a specific container or apparatus."""
     equipment_name: str = Field(
         description="The name of the container or equipment as mentioned in the user input."
     )
@@ -69,6 +89,7 @@ class HardwareFlag(BaseModel):
     )
 
 class PipelineMetrics(BaseModel):
+    """Quantitative performance and reliability evaluation metrics for the run."""
     rag_context_relevancy: float = Field(
         description="RAG Context Relevancy score: percentage of retrieved regulatory docs containing the chemical name (0.0 to 1.0)."
     )
@@ -83,6 +104,7 @@ class PipelineMetrics(BaseModel):
     )
 
 class ComplianceReport(BaseModel):
+    """Comprehensive compliance evaluation result returned by the Supervisor agent."""
     chemical_flags: list[ChemicalFlag] = Field(
         description="One ChemicalFlag entry for each chemical identified in the user input."
     )
@@ -121,6 +143,7 @@ class ComplianceReport(BaseModel):
 
 
 class PubChemData(BaseModel):
+    """Authoritative physical and hazard properties retrieved from PubChem PUG REST API."""
     chemical_name: str
     cid: int | None = None
     cas_number: str | None = None
@@ -136,12 +159,14 @@ class PubChemData(BaseModel):
 
 
 class SDSSection(BaseModel):
+    """An individual section of a 16-section GHS Safety Data Sheet."""
     section_number: int = Field(description="1 to 16")
     title: str = Field(description="Standard OSHA/GHS section title")
     content: str = Field(description="Structured text content of the section")
 
 
 class SDSDocument(BaseModel):
+    """Full 16-section GHS Safety Data Sheet data model."""
     product_name: str
     revision_date: str
     prepared_by: str = "ChemShield AI Multi-Agent Platform"
@@ -151,6 +176,7 @@ class SDSDocument(BaseModel):
 
 
 class TraceStep(BaseModel):
+    """Execution telemetry record representing a single agent action or decision."""
     agent: str
     action: str
     observation: str
@@ -164,6 +190,7 @@ class TraceStep(BaseModel):
 
 
 class AgentRunResult(BaseModel):
+    """Top-level pipeline execution envelope containing reports, SDS, traces, and metrics."""
     compliance_report: ComplianceReport
     sds_document: SDSDocument | None = None
     sds_html: str | None = None

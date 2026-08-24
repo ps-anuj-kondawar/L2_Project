@@ -8,8 +8,9 @@ via Model Context Protocol (MCP) stdio transport.
 The server performs normalized key matching against HARDWARE_LIMITS to handle
 minor naming variations (e.g., 'Borosilicate Glass Beaker' -> 'borosilicate glass beaker').
 """
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 try:

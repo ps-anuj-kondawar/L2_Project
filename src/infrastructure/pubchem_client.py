@@ -1,8 +1,26 @@
+"""
+ChemShield AI — PubChem Intelligence & PUG-REST Client.
+
+Provides asynchronous HTTP client interfaces to the National Center for
+Biotechnology Information (NCBI) PubChem API services:
+- PUG-REST Compound Lookup: Resolves chemical names to PubChem Compound IDs (CIDs)
+- Registry ID Cross-References: Extracts authoritative CAS Registry Numbers
+- Computed Physical Properties: Fetches MolecularWeight, BoilingPoint, FlashPoint, Density
+- PUG-View GHS Annotations: Retrieves Globally Harmonized System classifications,
+  hazard codes (H-codes), precautionary statements (P-codes), signal words, and pictograms.
+
+Performance & Reliability:
+- Global rate-limiting semaphore (max 5 concurrent requests) prevents NCBI HTTP 429 throttling
+- 7-day SQLite local caching layer for instant repeat lookups
+"""
+
 import asyncio
 import re
 import urllib.parse
-import httpx
 from typing import Any
+
+import httpx
+
 from src.core.logger import logger
 from src.core.models import PubChemData
 from src.infrastructure.cache import get_pubchem_cache, set_pubchem_cache
@@ -19,6 +37,7 @@ _pubchem_semaphore: asyncio.Semaphore | None = None
 
 
 def _get_semaphore() -> asyncio.Semaphore:
+    """Return the global concurrency-limiting semaphore for PubChem requests."""
     global _pubchem_semaphore
     if _pubchem_semaphore is None:
         _pubchem_semaphore = asyncio.Semaphore(5)
@@ -26,6 +45,16 @@ def _get_semaphore() -> asyncio.Semaphore:
 
 
 async def _fetch_json(url: str, timeout: float = 10.0) -> dict | None:
+    """
+    Execute rate-limited asynchronous HTTP GET request and parse JSON response.
+
+    Args:
+        url (str): Target REST URL.
+        timeout (float): Request timeout in seconds. Defaults to 10.0.
+
+    Returns:
+        dict | None: Parsed JSON payload or None on network/HTTP error.
+    """
     async with _get_semaphore():
         try:
             async with httpx.AsyncClient() as client:
@@ -38,6 +67,15 @@ async def _fetch_json(url: str, timeout: float = 10.0) -> dict | None:
 
 
 async def get_pubchem_cid(chemical_name: str) -> int | None:
+    """
+    Query PubChem PUG REST API to resolve a chemical name to its primary Compound ID (CID).
+
+    Args:
+        chemical_name (str): Raw chemical name or synonym.
+
+    Returns:
+        int | None: PubChem CID integer if found; None otherwise.
+    """
     encoded_name = urllib.parse.quote(chemical_name.strip())
     url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{encoded_name}/cids/JSON"
     data = await _fetch_json(url)
@@ -47,6 +85,15 @@ async def get_pubchem_cid(chemical_name: str) -> int | None:
 
 
 async def get_pubchem_cas(cid: int) -> str | None:
+    """
+    Query PubChem RegistryID xref endpoint to retrieve the verified CAS number for a CID.
+
+    Args:
+        cid (int): PubChem Compound ID.
+
+    Returns:
+        str | None: Formatted CAS Registry Number string (e.g. '71-43-2') or None.
+    """
     url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/xrefs/RegistryID/JSON"
     data = await _fetch_json(url)
     if data and "InformationList" in data and "Information" in data["InformationList"]:
@@ -58,6 +105,16 @@ async def get_pubchem_cas(cid: int) -> str | None:
 
 
 async def get_pubchem_properties(cid: int) -> dict[str, float | None]:
+    """
+    Retrieve experimental and computed physical constants for a CID.
+
+    Args:
+        cid (int): PubChem Compound ID.
+
+    Returns:
+        dict[str, float | None]: Dictionary with molecular_weight, boiling_point_celsius,
+                                  flash_point_celsius, and density.
+    """
     url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/MolecularWeight,BoilingPoint,FlashPoint,Density/JSON"
     data = await _fetch_json(url)
     props: dict[str, float | None] = {
@@ -84,7 +141,16 @@ async def get_pubchem_properties(cid: int) -> dict[str, float | None]:
 
 
 def _walk_sections(sections: list, target_heading: str) -> list:
-    """Recursively find all sections matching target_heading."""
+    """
+    Recursively search PubChem section trees for headings matching target_heading.
+
+    Args:
+        sections (list): List of section nodes from PubChem PUG-View JSON.
+        target_heading (str): Heading label substring to match.
+
+    Returns:
+        list: Matching section dictionary nodes.
+    """
     found = []
     for sec in sections:
         if target_heading.lower() in sec.get("TOCHeading", "").lower():
@@ -95,7 +161,15 @@ def _walk_sections(sections: list, target_heading: str) -> list:
 
 
 def _extract_string_values(section: dict) -> list[str]:
-    """Pull all StringWithMarkup String values from a section's Information list."""
+    """
+    Extract all StringWithMarkup text values from a PubChem Information block.
+
+    Args:
+        section (dict): PubChem section dictionary node.
+
+    Returns:
+        list[str]: Flattened list of extracted string values.
+    """
     values = []
     for info in section.get("Information", []):
         for val in info.get("Value", {}).get("StringWithMarkup", []):
@@ -106,6 +180,18 @@ def _extract_string_values(section: dict) -> list[str]:
 
 
 async def get_pubchem_ghs(cid: int) -> dict[str, Any]:
+    """
+    Query PubChem PUG-View endpoint for GHS classification annotations.
+
+    Extracts signal words, pictograms (GHS01-GHS09), H-statements, and P-statements.
+
+    Args:
+        cid (int): PubChem Compound ID.
+
+    Returns:
+        dict[str, Any]: Dictionary containing signal_word, ghs_pictogram_codes,
+                        hazard_statements, and precautionary_statements.
+    """
     url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=GHS+Classification"
     data = await _fetch_json(url)
     ghs_info: dict[str, Any] = {
@@ -165,6 +251,18 @@ async def get_pubchem_ghs(cid: int) -> dict[str, Any]:
 
 
 async def get_pubchem_data(chemical_name: str) -> PubChemData:
+    """
+    Retrieve aggregated PubChem intelligence for a given chemical name.
+
+    Orchestrates cache verification, CID resolution, and concurrent async queries
+    for CAS registry numbers, physical properties, and GHS classification blocks.
+
+    Args:
+        chemical_name (str): Chemical name or common synonym.
+
+    Returns:
+        PubChemData: Fully populated domain model.
+    """
     norm_name = chemical_name.strip().lower()
 
     # Layer 2 Cache Check
