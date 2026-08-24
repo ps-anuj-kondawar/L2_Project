@@ -1,5 +1,16 @@
+"""
+ChemShield AI — Regulatory Text Vector Retrieval (RAG) Subsystem.
+
+Provides vector similarity search against embedded OSHA 29 CFR 1910 standards,
+NIOSH pocket guides, and ECHA regulations stored in ChromaDB:
+- Uses PersistentClient for zero-network embedded vector retrieval
+- Lazy collection loading to minimize cold-start latency
+- Provides authoritative document citations for compliance audits and SDS Section 8/15
+"""
+
 from chromadb import PersistentClient
-from src.core.constants import CHROMA_PERSIST_DIR, CHROMA_COLLECTION_NAME, RAG_TOP_K
+
+from src.core.constants import CHROMA_COLLECTION_NAME, CHROMA_PERSIST_DIR, RAG_TOP_K
 from src.core.logger import logger
 
 _client = None
@@ -7,7 +18,15 @@ _collection = None
 
 
 def _get_collection():
-    """Lazy-initialize ChromaDB client and collection on first use."""
+    """
+    Lazy-initialize and return the shared ChromaDB client and collection.
+
+    Ensures the persistent storage directory exists and warns if the collection
+    needs to be populated via the ingestion script.
+
+    Returns:
+        chromadb.api.models.Collection.Collection: Active regulatory vector collection.
+    """
     global _client, _collection
     if _collection is None:
         _client = PersistentClient(path=CHROMA_PERSIST_DIR)

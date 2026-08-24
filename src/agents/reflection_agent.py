@@ -20,11 +20,12 @@ Fail behavior: any failed check sets reflection_passed=False and adds a note.
 The supervisor retries SDS authoring up to 2 times, passing notes back as correction context.
 """
 
-import time
 import re
-from src.core.state import AgentState
-from src.core.logger import logger
+import time
+
 from src.core.constants import CAS_TO_NAME, MASTER_CHEMICAL_DATABASE
+from src.core.logger import logger
+from src.core.state import AgentState
 
 # Compiled regex patterns
 _CAS_PATTERN = re.compile(r"\b\d{2,7}-\d{2}-\d\b")

@@ -1,10 +1,25 @@
-import os
-import json
+"""
+ChemShield AI — LLM Client & Provider Fallback Subsystem.
+
+Provides unified, resilient asynchronous text and structured JSON generation across:
+- Primary Provider: Google Gemini API (gemini-3.6-flash / gemini-3.6-pro)
+- Fallback Provider: OpenRouter API (automated failover on quota exhaustion or network drop)
+- Enterprise Provider: Google Cloud Vertex AI (when VERTEX_AI=true)
+
+Key Architecture:
+- ContextVar isolation: Thread-safe, request-scoped tracking of the actual LLM provider used
+- JSON Mode enforcement: Uses native response_mime_type for Gemini and sanitization on fallback
+- Connection reuse: Module-level lazy singleton for GenAI client instances
+"""
+
 import contextvars
+import os
+
 import httpx
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from dotenv import load_dotenv
+
 from src.core.logger import logger
 
 load_dotenv(override=True)
@@ -22,12 +37,18 @@ _genai_client: genai.Client | None = None
 
 
 def get_last_provider_used() -> str:
-    """Return the LLM provider used in the current context/thread."""
+    """
+    Return the name of the LLM provider utilized in the current async context or thread.
+
+    Returns:
+        str: Provider name string (e.g., 'Google Gemini', 'OpenRouter (Fallback)').
+    """
     return _last_provider_ctx.get()
 
 
 # Backward-compatible property shim
 class _ProviderTracker:
+    """String proxy for backwards compatibility with legacy LAST_PROVIDER_USED checks."""
     def __str__(self) -> str:
         return get_last_provider_used()
 
@@ -39,6 +60,14 @@ LAST_PROVIDER_USED = _ProviderTracker()
 
 
 def _get_genai_client() -> genai.Client:
+    """
+    Lazy-initialize and return the shared Google GenAI Client singleton.
+
+    Configures either Vertex AI (project + location) or direct Gemini API key authentication.
+
+    Returns:
+        genai.Client: Authenticated Google GenAI client instance.
+    """
     global _genai_client
     if _genai_client is None:
         use_vertex = os.getenv("VERTEX_AI", "false").lower() in ("true", "1")
@@ -52,7 +81,23 @@ def _get_genai_client() -> genai.Client:
 
 
 async def chat(messages: list[dict], json_mode: bool = False) -> str:
-    """Send messages to LLM and handle transient provider failures with automatic fallback."""
+    """
+    Dispatch an asynchronous chat completion with automatic provider fallback.
+
+    Attempts primary provider first (e.g. Gemini); if transient API errors or quota limits
+    occur, gracefully falls back to OpenRouter while logging diagnostic warnings.
+
+    Args:
+        messages (list[dict]): Standard OpenAI-compatible message list [{'role': ..., 'content': ...}].
+        json_mode (bool): When True, instructs model to return strictly valid JSON.
+
+    Returns:
+        str: Model response text, stripped of abnormal unicode spaces.
+
+    Raises:
+        ValueError: If neither GEMINI_API_KEY nor OPENROUTER_API_KEY is configured.
+        Exception: If all configured provider backends fail.
+    """
     provider = LLM_PROVIDER
     gemini_key = os.getenv("GEMINI_API_KEY")
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
@@ -64,7 +109,7 @@ async def chat(messages: list[dict], json_mode: bool = False) -> str:
             return res
         except Exception as e:
             if openrouter_key:
-                logger.warning(f"Gemini call failed ({type(e).__name__}: {str(e)}). Falling back to OpenRouter...")
+                logger.warning(f"Gemini call failed ({type(e).__name__}: {e!s}). Falling back to OpenRouter...")
                 try:
                     res = await _openrouter_chat(messages, json_mode)
                     _last_provider_ctx.set("OpenRouter (Fallback)")
@@ -87,6 +132,19 @@ async def chat(messages: list[dict], json_mode: bool = False) -> str:
 
 
 async def _gemini_chat(messages: list[dict], json_mode: bool) -> str:
+    """
+    Execute generation request against Google Gemini GenAI SDK.
+
+    Configures system instruction, response MIME type (JSON/plain text),
+    and formats message roles appropriately.
+
+    Args:
+        messages (list[dict]): Prompt message structures.
+        json_mode (bool): Whether to enforce application/json MIME response type.
+
+    Returns:
+        str: Response string with normalized whitespace.
+    """
     client = _get_genai_client()
 
     system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
@@ -122,6 +180,16 @@ async def _gemini_chat(messages: list[dict], json_mode: bool) -> str:
 
 
 async def _openrouter_chat(messages: list[dict], json_mode: bool) -> str:
+    """
+    Execute generation request against OpenRouter REST API fallback endpoint.
+
+    Args:
+        messages (list[dict]): Prompt message list.
+        json_mode (bool): Whether to strip Markdown JSON backticks from response.
+
+    Returns:
+        str: Cleaned model text response.
+    """
     headers = {
         "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
         "Content-Type":  "application/json",
@@ -149,9 +217,9 @@ async def _openrouter_chat(messages: list[dict], json_mode: bool) -> str:
             content = content[7:]
         elif content.startswith("```"):
             content = content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
+        content = content.removesuffix("```")
         content = content.strip()
         
     logger.info(f"[OpenRouter Response]: {content}")
     return content
+

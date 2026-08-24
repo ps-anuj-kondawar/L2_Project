@@ -14,8 +14,11 @@ Thresholds:
 - Physical boundary warning:     150% of hardware rated limit (clearly implausible only)
 """
 
-from rapidfuzz import process, fuzz
-from src.core.constants import BOILING_POINTS_CELSIUS, HARDWARE_LIMITS, MASTER_CHEMICAL_DATABASE
+from rapidfuzz import fuzz, process
+
+from src.core.constants import (
+    HARDWARE_LIMITS,
+)
 
 # Master list of verified chemical names aligned with MASTER_CHEMICAL_DATABASE and RAG chunks.
 # Used by the Copilot to detect chemicals mentioned in chat messages.

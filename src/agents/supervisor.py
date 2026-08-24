@@ -1,36 +1,37 @@
+import json
 import re
 import time
-import json
-from src.core.state import AgentState
-from src.core.models import (
-    ComplianceReport,
-    PipelineMetrics,
-    AgentRunResult,
-    ExtractedChemical,
-    ExtractedHardware
-)
-from src.agents.intelligence_agent import run_intelligence_agent
+
+import src.infrastructure.llm_client as _llm_client
 from src.agents.chemical_agent import run_chemical_agent
 from src.agents.hardware_agent import run_hardware_agent
-from src.agents.sds_author_agent import run_sds_author_agent
+from src.agents.intelligence_agent import run_intelligence_agent
 from src.agents.reflection_agent import run_reflection_agent
+from src.agents.sds_author_agent import run_sds_author_agent
+from src.core.constants import BOILING_POINTS_CELSIUS, CAS_TO_NAME
+from src.core.logger import logger
+from src.core.models import (
+    AgentRunResult,
+    ComplianceReport,
+    ExtractedChemical,
+    ExtractedHardware,
+    PipelineMetrics,
+)
+from src.core.state import AgentState
+from src.infrastructure.cache import (
+    get_osha_limits,
+    get_pubchem_cache,
+    get_semantic_cache,
+    get_summary_cache,
+    set_semantic_cache,
+    set_summary_cache,
+)
+from src.infrastructure.llm_client import chat as llm_chat
 from src.utils.validator import (
+    fuzzy_match_hardware,
     validate_and_correct_chemicals,
     validate_physical_boundaries,
-    fuzzy_match_hardware
 )
-import src.infrastructure.llm_client as _llm_client
-from src.infrastructure.llm_client import chat as llm_chat
-from src.infrastructure.cache import (
-    get_semantic_cache,
-    set_semantic_cache,
-    get_summary_cache,
-    set_summary_cache,
-    get_osha_limits,
-    get_pubchem_cache
-)
-from src.core.logger import logger
-from src.core.constants import BOILING_POINTS_CELSIUS, CAS_TO_NAME
 
 # Compiled regex: CAS Registry Number format (e.g., 71-43-2, 7664-93-9)
 _CAS_NUMBER_PATTERN = re.compile(r'^\d{2,7}-\d{2}-\d$')
@@ -164,7 +165,7 @@ async def run_supervisor(
                 result.compliance_report.cache_status = "SQLite Semantic Cache Hit (Review Required — SDS Suppressed)"
                 return result
 
-            logger.info(f"[Supervisor] Semantic cache HIT for compliance audit! Reusing audit data to generate SDS directly...")
+            logger.info("[Supervisor] Semantic cache HIT for compliance audit! Reusing audit data to generate SDS directly...")
             state = AgentState(user_input=user_input, intent=intent, region=region, language=language)
             comp = result.compliance_report
             state.chemical_flags = comp.chemical_flags

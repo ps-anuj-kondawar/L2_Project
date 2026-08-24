@@ -1,23 +1,40 @@
+"""
+ChemShield AI — GHS Safety Data Sheet PDF Generation Subsystem.
+
+Constructs publication-grade PDF documents conforming to the OSHA Hazard
+Communication Standard (29 CFR 1910.1200 / GHS Rev.9):
+- Implements dynamic two-pass canvas (NumberedCanvas) for accurate "Page X of Y" footers
+- Formats 16 standard GHS sections into ReportLab Platypus flowable elements
+- Renders safety advisory banners for reflection-flagged or non-compliant formulations
+- Styles metadata header grids with revision dates and preparation credentials
+"""
+
 import io
 import re
-from reportlab.lib.pagesizes import A4
+
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.pdfgen import canvas
 from reportlab.platypus import (
-    SimpleDocTemplate,
+    KeepTogether,
     Paragraph,
+    SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
-    KeepTogether
 )
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.pdfgen import canvas
+
 from src.core.models import SDSDocument
-from src.core.logger import logger
 
 
 class NumberedCanvas(canvas.Canvas):
-    """Two-pass canvas to dynamically compute and render total page count on footer."""
+    """
+    Two-pass canvas for dynamic total page count computation.
+
+    Saves state during page drawing pass and writes exact footer metadata
+    and page numbering in the second pass before writing PDF output stream.
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
@@ -49,8 +66,14 @@ class NumberedCanvas(canvas.Canvas):
 
 def generate_sds_pdf(sds: SDSDocument, warning_banner: str | None = None) -> bytes:
     """
-    Generate a multi-page PDF document for a 16-section GHS Safety Data Sheet.
-    Returns raw PDF bytes.
+    Generate a formatted multi-page PDF for a 16-section GHS Safety Data Sheet.
+
+    Args:
+        sds (SDSDocument): Structured 16-section Safety Data Sheet object.
+        warning_banner (str | None): Optional cautionary note or CSP review advisory banner.
+
+    Returns:
+        bytes: Raw binary PDF data suitable for streaming download or storage.
     """
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(

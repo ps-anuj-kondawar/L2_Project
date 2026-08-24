@@ -1,24 +1,26 @@
-import time
-import json
 import datetime
+import json
 import re
+import time
+
 from jinja2 import Template
-from src.core.state import AgentState
+
+from src.core.constants import (
+    BOILING_POINTS_CELSIUS,
+    CAS_TO_NAME,
+    MASTER_CHEMICAL_DATABASE,
+    PHYSICAL_PROPERTIES,
+)
+from src.core.logger import logger
 from src.core.models import SDSDocument, SDSSection
+from src.core.state import AgentState
 from src.infrastructure.llm_client import chat as llm_chat
 from src.utils.ghs_rules import (
     determine_overall_signal_word,
-    load_pictogram_svg,
-    get_mixture_un_transport_info,
     get_carcinogen_info,
+    get_mixture_un_transport_info,
+    load_pictogram_svg,
 )
-from src.core.constants import (
-    MASTER_CHEMICAL_DATABASE,
-    CAS_TO_NAME,
-    PHYSICAL_PROPERTIES,
-    BOILING_POINTS_CELSIUS,
-)
-from src.core.logger import logger
 
 SDS_SECTION_TITLES = [
     (1, "Identification"),
@@ -242,18 +244,18 @@ def _build_expert_sections(
     )
 
     s5 = (
-        f"Fire-Fighting Measures:\n"
-        f"• Suitable Extinguishing Media: Water spray, alcohol-resistant foam, dry chemical powder, or carbon dioxide (CO2).\n"
-        f"• Unsuitable Extinguishing Media: High-volume solid water streams (may scatter flammable organic layer).\n"
-        f"• Specific Chemical Hazards: Formulations containing volatile organic components emit flammable vapors that can travel to ignition sources and flash back. Thermal decomposition generates carbon monoxide (CO), carbon dioxide (CO2), and irritating vapors.\n"
-        f"• Firefighter Protective Equipment: Wear positive-pressure self-contained breathing apparatus (SCBA) approved by NIOSH/EN standards and full protective turnout gear. Cool fire-exposed closed containers with water spray."
+        "Fire-Fighting Measures:\n"
+        "• Suitable Extinguishing Media: Water spray, alcohol-resistant foam, dry chemical powder, or carbon dioxide (CO2).\n"
+        "• Unsuitable Extinguishing Media: High-volume solid water streams (may scatter flammable organic layer).\n"
+        "• Specific Chemical Hazards: Formulations containing volatile organic components emit flammable vapors that can travel to ignition sources and flash back. Thermal decomposition generates carbon monoxide (CO), carbon dioxide (CO2), and irritating vapors.\n"
+        "• Firefighter Protective Equipment: Wear positive-pressure self-contained breathing apparatus (SCBA) approved by NIOSH/EN standards and full protective turnout gear. Cool fire-exposed closed containers with water spray."
     )
 
     s6 = (
-        f"Accidental Release Measures:\n"
-        f"• Personal Precautions & PPE: Evacuate non-essential personnel. Eliminate all ignition sources. Ensure adequate ventilation. Personnel involved in cleanup must wear appropriate PPE based on workplace risk assessment (chemical splash goggles, solvent-resistant gloves such as Viton/Silver Shield, and NIOSH organic vapor respiratory protection if vapor concentrations exceed action levels).\n"
-        f"• Environmental Precautions: Prevent spilled formulation from entering waterways, sewers, or soil.\n"
-        f"• Clean-Up Methods: Absorb spill with non-combustible material (vermiculite, dry sand, earth). Transfer to a sealed, spark-proof, labeled hazardous chemical waste container. Ground all transfer equipment."
+        "Accidental Release Measures:\n"
+        "• Personal Precautions & PPE: Evacuate non-essential personnel. Eliminate all ignition sources. Ensure adequate ventilation. Personnel involved in cleanup must wear appropriate PPE based on workplace risk assessment (chemical splash goggles, solvent-resistant gloves such as Viton/Silver Shield, and NIOSH organic vapor respiratory protection if vapor concentrations exceed action levels).\n"
+        "• Environmental Precautions: Prevent spilled formulation from entering waterways, sewers, or soil.\n"
+        "• Clean-Up Methods: Absorb spill with non-combustible material (vermiculite, dry sand, earth). Transfer to a sealed, spark-proof, labeled hazardous chemical waste container. Ground all transfer equipment."
     )
 
     s7 = (
@@ -284,13 +286,13 @@ def _build_expert_sections(
     )
 
     s10 = (
-        f"Stability and Reactivity:\n"
-        f"• Chemical Reactivity: No hazardous reaction expected under normal ambient handling conditions. Vapors from volatile components may form explosive mixtures with air.\n"
-        f"• Chemical Stability: Thermally stable when stored under recommended conditions (15–25°C in sealed containers).\n"
-        f"• Possibility of Hazardous Reactions: Hazardous polymerization will not occur. Violent reaction or rapid exotherm possible with strong oxidizing agents.\n"
-        f"• Conditions to Avoid: Heat, open flames, sparks, hot surfaces, static electricity, direct sunlight, and temperatures approaching component boiling points.\n"
-        f"• Incompatible Materials: Strong oxidizing agents, strong reducing agents, concentrated acids, halogens, alkali metals.\n"
-        f"• Hazardous Decomposition Products: Carbon monoxide (CO), carbon dioxide (CO2), irritating toxic organic fumes."
+        "Stability and Reactivity:\n"
+        "• Chemical Reactivity: No hazardous reaction expected under normal ambient handling conditions. Vapors from volatile components may form explosive mixtures with air.\n"
+        "• Chemical Stability: Thermally stable when stored under recommended conditions (15–25°C in sealed containers).\n"
+        "• Possibility of Hazardous Reactions: Hazardous polymerization will not occur. Violent reaction or rapid exotherm possible with strong oxidizing agents.\n"
+        "• Conditions to Avoid: Heat, open flames, sparks, hot surfaces, static electricity, direct sunlight, and temperatures approaching component boiling points.\n"
+        "• Incompatible Materials: Strong oxidizing agents, strong reducing agents, concentrated acids, halogens, alkali metals.\n"
+        "• Hazardous Decomposition Products: Carbon monoxide (CO), carbon dioxide (CO2), irritating toxic organic fumes."
     )
 
     s11 = (
@@ -307,12 +309,12 @@ def _build_expert_sections(
     )
 
     s12 = (
-        f"Ecological Information:\n"
-        f"• Ecotoxicity: Formulation contains component(s) toxic to aquatic life. Ecotoxicity classification is derived from component aquatic toxicity data (LC50/EC50) and concentration cut-offs.\n"
-        f"• Persistence and Degradability: Biodegradability varies by component; aromatic hydrocarbons degrade moderately in aerobic conditions.\n"
-        f"• Bioaccumulative Potential: Low to moderate bioaccumulation potential based on component log Kow values.\n"
-        f"• Mobility in Soil: Volatile organic components evaporate rapidly; water-soluble components migrate into groundwater.\n"
-        f"• Other Adverse Effects: Prevent material from entering surface waterways, municipal storm drains, or sanitary sewers."
+        "Ecological Information:\n"
+        "• Ecotoxicity: Formulation contains component(s) toxic to aquatic life. Ecotoxicity classification is derived from component aquatic toxicity data (LC50/EC50) and concentration cut-offs.\n"
+        "• Persistence and Degradability: Biodegradability varies by component; aromatic hydrocarbons degrade moderately in aerobic conditions.\n"
+        "• Bioaccumulative Potential: Low to moderate bioaccumulation potential based on component log Kow values.\n"
+        "• Mobility in Soil: Volatile organic components evaporate rapidly; water-soluble components migrate into groundwater.\n"
+        "• Other Adverse Effects: Prevent material from entering surface waterways, municipal storm drains, or sanitary sewers."
     )
 
     s13 = (
@@ -379,8 +381,7 @@ def _parse_llm_sections(raw_text: str) -> list[SDSSection] | None:
         cleaned = cleaned[7:]
     elif cleaned.startswith("```"):
         cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
+    cleaned = cleaned.removesuffix("```")
     cleaned = cleaned.strip()
 
     # Strategy 1: Direct JSON parse

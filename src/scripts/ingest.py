@@ -1,11 +1,26 @@
+"""
+ChemShield AI — Regulatory Data Ingestion & Embedding Script.
+
+Parses unstructured regulatory texts from `data/regulatory_framework.txt` into
+discrete paragraph chunks and populates the local persistent ChromaDB collection.
+
+Usage:
+    python -m src.scripts.ingest          # Incrementally upsert regulatory chunks
+    python -m src.scripts.ingest --reset  # Purge existing collection before re-indexing
+"""
+
 import sys
+
 from chromadb import PersistentClient
-from src.core.constants import CHROMA_PERSIST_DIR, CHROMA_COLLECTION_NAME, RAG_DATA_PATH
+
+from src.core.constants import CHROMA_COLLECTION_NAME, CHROMA_PERSIST_DIR, RAG_DATA_PATH
 from src.core.logger import logger
 
 
-def main():
-    logger.info("=== Lab Safety Auditor - RAG Ingestion ===")
+def main() -> None:
+    """
+    Parse regulatory source text into paragraph chunks and upsert into ChromaDB.
+    """
 
     reset_db = "--reset" in sys.argv
 

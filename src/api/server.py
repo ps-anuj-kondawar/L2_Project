@@ -1,19 +1,36 @@
+"""
+ChemShield AI — FastAPI Application Server.
+
+Provides REST and Server-Sent Events (SSE) endpoints for:
+- Automated OSHA compliance auditing and risk assessment
+- Live streaming execution traces and diagnostic logs
+- Context-aware multi-turn chemical safety Copilot chat
+- Full 16-section GHS Safety Data Sheet (SDS) PDF generation
+- Example laboratory formulation scenario catalogs
+
+Architecture:
+- Asynchronous non-blocking route handlers powered by FastAPI and Uvicorn
+- Real-time logging dispatch via thread-safe QueueHandler and BufferHandler
+- Strict input validation and sanitization using Pydantic V2 schemas
+"""
+
 import asyncio
-import os
-import re
 import json
 import logging
+import os
+import re
+
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.agents.supervisor import run_supervisor
 from src.core.copilot import copilot_chat
+from src.core.logger import logger
 from src.core.models import Intent
 from src.infrastructure.pdf_generator import generate_sds_pdf
-from src.core.logger import logger
 
 app = FastAPI(
     title="ChemShield AI — Enterprise Safety & SDS Platform",
@@ -32,6 +49,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_no_cache_header(request, call_next):
+    """Ensure static assets are never cached during development or live evaluation."""
     response = await call_next(request)
     if request.url.path.startswith("/static"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -47,11 +65,13 @@ app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
+    """Favicon endpoint returning HTTP 204 No Content."""
     return Response(status_code=204)
 
 MAX_INPUT_LENGTH = int(os.getenv("MAX_INPUT_LENGTH", "2000"))
 
 class AuditRequest(BaseModel):
+    """Request payload schema for compliance auditing and SDS generation."""
     user_input: str = Field(description="Lab formulation note or chemical input text")
     intent: Intent = Field(default=Intent.AUDIT, description="Action intent: 'audit', 'sds', 'full', or 'audit_and_sds'")
     region: str = Field(default="US", description="Regulatory jurisdiction region (e.g. US, EU, JP)")
@@ -59,8 +79,9 @@ class AuditRequest(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str
-    history: list = Field(default_factory=list)
+    """Request payload schema for multi-turn Copilot conversations."""
+    message: str = Field(description="User prompt or safety inquiry")
+    history: list = Field(default_factory=list, description="Prior conversation message turns")
     formulation_context: str | None = Field(
         default=None,
         description="Last audited formulation text, injected into copilot system prompt for contextual awareness."
@@ -73,6 +94,12 @@ class ChatRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
+    """
+    Serve the Single Page Application (SPA) HTML entry point.
+    
+    Returns:
+        HTMLResponse: Rendered static index.html or bootstrap status page.
+    """
     index_path = os.path.join("static", "index.html")
     if os.path.exists(index_path):
         with open(index_path, "r", encoding="utf-8") as f:
@@ -106,12 +133,32 @@ _EXAMPLE_SCENARIOS = {
 
 @app.get("/api/v1/examples")
 async def get_examples():
+    """
+    Retrieve pre-configured benchmark scenario catalog for UI demonstration.
+    
+    Returns:
+        JSONResponse: Dictionary of preset test scenarios with titles and input texts.
+    """
     return JSONResponse(content=_EXAMPLE_SCENARIOS)
 
 
 @app.post("/api/v1/audit")
 async def audit_endpoint(req: AuditRequest):
-    """Blocking audit endpoint. Collects logs via a temporary handler and returns them with the result."""
+    """
+    Execute a synchronous compliance audit and risk assessment pipeline run.
+
+    Attaches a thread-scoped buffer handler to capture diagnostic log output
+    and bundles logs into the final JSON payload.
+
+    Args:
+        req (AuditRequest): Audit configuration, input text, region, and language.
+
+    Returns:
+        JSONResponse: Serialized AgentRunResult including compliance report and logs.
+
+    Raises:
+        HTTPException: 400 if input is empty or exceeds character limits; 500 on execution failure.
+    """
     if not req.user_input or not req.user_input.strip():
         raise HTTPException(status_code=400, detail="Formulation input text cannot be empty.")
     if len(req.user_input.strip()) > MAX_INPUT_LENGTH:
@@ -135,9 +182,22 @@ async def audit_endpoint(req: AuditRequest):
 @app.get("/api/v1/stream")
 async def stream_audit_endpoint(input_text: str, intent: Intent = Intent.AUDIT, region: str = "US", language: str = "en"):
     """
-    Server-Sent Events endpoint.
-    Attaches a per-request QueueHandler to the shared logger so every logger.info() call
-    is forwarded into the SSE stream in real-time as the pipeline runs.
+    Stream live execution trace steps and diagnostic logs via Server-Sent Events (SSE).
+
+    Attaches a per-request QueueHandler to the shared logger to stream log events
+    to the UI in real time as each agent executes.
+
+    Args:
+        input_text (str): Lab formulation text.
+        intent (Intent): Workflow intent ('audit', 'sds', 'full', 'audit_and_sds').
+        region (str): Target regulatory jurisdiction (e.g., 'US', 'EU').
+        language (str): Output language code (e.g., 'en', 'es').
+
+    Returns:
+        StreamingResponse: SSE stream emitting 'start', 'log', 'step', 'result', and 'error' events.
+
+    Raises:
+        HTTPException: 400 if input text is empty or exceeds MAX_INPUT_LENGTH.
     """
     if not input_text or not input_text.strip():
         raise HTTPException(status_code=400, detail="Input text required.")
@@ -205,9 +265,19 @@ _SANITISE_CONTEXT_PATTERN = re.compile(r"[<>{}\[\]]")
 @app.post("/api/v1/chat")
 async def chat_endpoint(req: ChatRequest):
     """
-    Multi-turn safety copilot chat.
-    Accepts optional formulation_context and audit_summary to make the copilot
-    context-aware of the last audited formulation without the user re-typing it.
+    Handle multi-turn interactive Copilot chat conversations.
+
+    Injects active formulation context and audit summaries into the reasoning
+    context, grounding answers against OSHA regulatory guidelines and PubChem data.
+
+    Args:
+        req (ChatRequest): Incoming user message, conversation history, and optional context.
+
+    Returns:
+        JSONResponse: Copilot response, latency metrics, and grounding precision scores.
+
+    Raises:
+        HTTPException: 400 if message is empty; 500 on server error.
     """
     if not req.message or not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
@@ -232,7 +302,19 @@ async def chat_endpoint(req: ChatRequest):
 @app.post("/api/v1/sds/pdf")
 async def download_sds_pdf(req: AuditRequest):
     """
-    Generate and download a full multi-page PDF document for a 16-section GHS Safety Data Sheet.
+    Generate and stream a publication-grade 16-section GHS Safety Data Sheet PDF.
+
+    Executes full multi-agent authoring and validation, appending safety banners
+    for non-compliant or reflection-flagged formulations.
+
+    Args:
+        req (AuditRequest): Request parameters with formulation text, region, and language.
+
+    Returns:
+        Response: Binary application/pdf stream with Content-Disposition attachment header.
+
+    Raises:
+        HTTPException: 400 on empty input or SDS generation failure; 500 on internal errors.
     """
     if not req.user_input or not req.user_input.strip():
         raise HTTPException(status_code=400, detail="Input text cannot be empty.")
@@ -282,15 +364,32 @@ async def download_sds_pdf(req: AuditRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Internal helpers ──────────────────────────────────────────────────────────
+# ── Internal logging and SSE helpers ──────────────────────────────────────────
 
 def _sse(event: str, data: dict) -> str:
-    """Format a Server-Sent Event string."""
+    """
+    Format a Server-Sent Event frame.
+
+    Args:
+        event (str): Event name identifier (e.g. 'log', 'step', 'result').
+        data (dict): Payload dictionary serialized as JSON.
+
+    Returns:
+        str: Standard SSE formatted text chunk.
+    """
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 def _make_buffer_handler(target: list[str]) -> logging.Handler:
-    """Returns a handler that appends formatted log lines to a list."""
+    """
+    Create a lightweight logging Handler that appends records to an in-memory list.
+
+    Args:
+        target (list[str]): Mutable list receiving formatted log strings.
+
+    Returns:
+        logging.Handler: Configured logging handler.
+    """
     class _BufferHandler(logging.Handler):
         def emit(self, record: logging.LogRecord) -> None:
             target.append(self.format(record))
@@ -301,7 +400,16 @@ def _make_buffer_handler(target: list[str]) -> logging.Handler:
 
 
 def _make_queue_handler(queue: asyncio.Queue, loop: asyncio.AbstractEventLoop) -> logging.Handler:
-    """Returns a handler that pushes formatted log lines into an asyncio queue (thread-safe)."""
+    """
+    Create a thread-safe logging Handler that pushes records into an asyncio Queue.
+
+    Args:
+        queue (asyncio.Queue): Target queue receiving formatted log messages.
+        loop (asyncio.AbstractEventLoop): Event loop on which queue operations are scheduled.
+
+    Returns:
+        logging.Handler: Thread-safe queue logging handler.
+    """
     class _QueueHandler(logging.Handler):
         def emit(self, record: logging.LogRecord) -> None:
             msg = self.format(record)

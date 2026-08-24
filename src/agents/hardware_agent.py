@@ -1,18 +1,19 @@
 import asyncio
-import time
-import sys
 import json
+import os
+import sys
+import time
+
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-import os
-from src.core.state import AgentState
-from src.core.models import HardwareFlag
-from src.core.constants import MCP_SERVER_SCRIPT, HARDWARE_LIMITS
-from src.core.logger import logger
-from src.infrastructure.llm_client import chat as llm_chat
-from src.utils.validator import fuzzy_match_hardware
 from tavily import TavilyClient
 
+from src.core.constants import HARDWARE_LIMITS, MCP_SERVER_SCRIPT
+from src.core.logger import logger
+from src.core.models import HardwareFlag
+from src.core.state import AgentState
+from src.infrastructure.llm_client import chat as llm_chat
+from src.utils.validator import fuzzy_match_hardware
 
 _MATERIAL_UPPER_BOUNDS = {
     "polypropylene": 120.0, "pp": 120.0, "plastic": 150.0,

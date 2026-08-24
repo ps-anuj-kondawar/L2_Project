@@ -1,9 +1,18 @@
-import unittest
+"""
+ChemShield AI — 16-Section GHS Safety Data Sheet Verification Tests.
+
+Validates SDS authoring generation, section completeness, CAS consistency,
+reflection quality gates, and PDF document construction.
+"""
+
 import json
-from unittest.mock import patch, AsyncMock
+import unittest
+from unittest.mock import AsyncMock, patch
+
+from src.agents.sds_author_agent import _clean_section_title
 from src.agents.supervisor import run_supervisor
 from src.infrastructure.pubchem_client import get_pubchem_data
-from src.agents.sds_author_agent import _clean_section_title
+
 
 async def mock_sds_llm_chat(messages, json_mode=False):
     sys_msg = next((m["content"] for m in messages if m["role"] == "system"), "")

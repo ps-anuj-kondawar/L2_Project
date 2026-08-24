@@ -1,10 +1,15 @@
+"""
+ChemShield AI — Unified Logging Subsystem.
+
+Provides a centralized logger instance ('safety_auditor') shared across all agents.
+Supports dynamic per-request handler attachment for:
+- Live streaming SSE telemetry to front-end clients
+- In-memory buffered capture for synchronous REST endpoints
+- Standard console stream formatting for developer debugging
+"""
+
 import logging
 import sys
-
-# Single module-level logger used across all agents.
-# The server attaches per-request handlers (QueueHandler / BufferHandler)
-# to this logger at request time, so every logger.info() call anywhere
-# in the pipeline automatically reaches the SSE stream or response buffer.
 
 logger = logging.getLogger("safety_auditor")
 logger.setLevel(logging.INFO)
