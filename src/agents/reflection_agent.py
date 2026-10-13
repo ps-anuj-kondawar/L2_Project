@@ -67,9 +67,28 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
         )
         return state
 
+    # =========================================================================
+    # WORKFLOW STAGE: REFLECTION & GUARDRAIL AUDIT (QUALITY GATE)
+    # Serves as the critic agent in the Actor-Critic reflection workflow loop:
+    #   1. Inspects the SDSDocument produced by SDSAuthorAgent.
+    #   2. Executes 10 deterministic compliance and hallucination checks:
+    #        - Check 1: 16 GHS Section Completeness
+    #        - Check 2: CAS Hallucination & Cross-Validation vs PubChem
+    #        - Check 3: Exposure Limit Leakage Guard (Sec 3 vs Sec 8)
+    #        - Check 4: PPE Specificity Verification
+    #        - Check 5: UN Transport Classification
+    #        - Check 6: Statutory Framework References (TSCA, SARA, REACH, OSHA)
+    #        - Check 7: Emergency Contact & Responsible Party Verification
+    #        - Check 8: Physical & Chemical Properties Completeness
+    #        - Check 9: Carcinogen Disclosure (IARC/NTP citations)
+    #        - Check 10: RCRA Hazardous Waste Code Verification
+    #   3. If any check fails, reflection_passed=False and detailed critique notes
+    #      are saved to state.reflection_notes, prompting the Supervisor to re-run
+    #      the authoring agent with the critique context (max 2 retries).
+    # =========================================================================
     sds = state.sds_document
 
-    # Check 1: All 16 GHS sections must be present
+    # Check 1: All 16 GHS mandatory sections must be present and non-empty
     if len(sds.sections) < 16:
         state.reflection_passed = False
         state.reflection_notes.append(
@@ -124,13 +143,12 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
 
     # Check 4: Section 8 must reference PPE for any hazardous chemicals
     sec8_content = next((s.content for s in sds.sections if s.section_number == 8), "")
-    if state.chemical_flags:
-        if not any(kw in sec8_content.lower() for kw in ["glove", "respirator", "goggles", "ppe", "protection", "hood", "mask"]):
-            state.reflection_passed = False
-            state.reflection_notes.append(
-                "Section 8 (Exposure Controls/PPE) is missing explicit personal protective equipment requirements. "
-                "Gloves, eye protection, and respiratory protection must be specified for hazardous chemicals."
-            )
+    if state.chemical_flags and not any(kw in sec8_content.lower() for kw in ["glove", "respirator", "goggles", "ppe", "protection", "hood", "mask"]):
+        state.reflection_passed = False
+        state.reflection_notes.append(
+            "Section 8 (Exposure Controls/PPE) is missing explicit personal protective equipment requirements. "
+            "Gloves, eye protection, and respiratory protection must be specified for hazardous chemicals."
+        )
 
     # Check 5: Section 14 must contain UN number or explicit 'not regulated' classification
     sec14_content = next((s.content for s in sds.sections if s.section_number == 14), "")
@@ -187,14 +205,13 @@ async def run_reflection_agent(state: AgentState) -> AgentState:
     sec11_content = next((s.content for s in sds.sections if s.section_number == 11), "")
     chem_names_lower = {c.name.lower().strip() for c in (state.chemicals or [])}
     has_carcinogen = bool(chem_names_lower & _CARCINOGENS_REQUIRING_DISCLOSURE)
-    if has_carcinogen:
-        if not any(kw in sec11_content.upper() for kw in ["IARC", "NTP", "CARCINOGEN", "KNOWN TO CAUSE CANCER"]):
-            state.reflection_passed = False
-            state.reflection_notes.append(
-                "Section 11 (Toxicological Information) is missing carcinogen classification disclosure. "
-                "The formulation contains an IARC Group 1 or Group 2A classified carcinogen. "
-                "IARC and NTP carcinogen status must be explicitly stated."
-            )
+    if has_carcinogen and not any(kw in sec11_content.upper() for kw in ["IARC", "NTP", "CARCINOGEN", "KNOWN TO CAUSE CANCER"]):
+        state.reflection_passed = False
+        state.reflection_notes.append(
+            "Section 11 (Toxicological Information) is missing carcinogen classification disclosure. "
+            "The formulation contains an IARC Group 1 or Group 2A classified carcinogen. "
+            "IARC and NTP carcinogen status must be explicitly stated."
+        )
 
     # Check 10: Chemical Cross-Section Consistency Audit (Section 3 Integrity Guard)
     # Ensures chemicals mentioned in Section 3 (Composition/Ingredients) are limited to

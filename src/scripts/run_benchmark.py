@@ -35,8 +35,11 @@ async def run_benchmark() -> None:
         return
 
     # 1. Load dataset
-    with open(dataset_path, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+    def _read_dataset():
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            return f.readlines()
+
+    lines = await asyncio.to_thread(_read_dataset)
         
     scenarios = [json.loads(line) for line in lines if line.strip()]
     
@@ -125,8 +128,11 @@ async def run_benchmark() -> None:
             "ragas_metrics": ragas_dict,
         }
         
-        with open("benchmark_results.json", "w", encoding="utf-8") as f:
-            json.dump(summary_output, f, indent=4, default=str)
+        def _write_results(data):
+            with open("benchmark_results.json", "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, default=str)
+
+        await asyncio.to_thread(_write_results, summary_output)
             
         print("\nBenchmark results saved to benchmark_results.json")
     except Exception as e:
@@ -142,8 +148,7 @@ async def run_benchmark() -> None:
             "ragas_metrics": None,
             "ragas_error": str(e),
         }
-        with open("benchmark_results.json", "w", encoding="utf-8") as f:
-            json.dump(summary_output, f, indent=4, default=str)
+        await asyncio.to_thread(_write_results, summary_output)
         print("\nPartial benchmark results saved to benchmark_results.json")
 
 if __name__ == "__main__":

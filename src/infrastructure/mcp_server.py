@@ -51,6 +51,8 @@ def _resolve_equipment_key(equipment_name: str) -> str | None:
     return None
 
 
+# --- MCP Server Tool Registration ---
+# Exposes tools to the MCP client over stdio transport.
 @mcp.tool()
 def check_hardware_compatibility(
     equipment_name: str,
@@ -71,14 +73,17 @@ def check_hardware_compatibility(
         Dict with is_safe boolean and max_safe_temperature_celsius,
         or error dict if equipment is unknown.
     """
+    # Step 1: Match against canonical hardware limits database
     resolved_key = _resolve_equipment_key(equipment_name)
 
+    # Step 2: Handle domain misses (signals client to trigger web-search fallback)
     if resolved_key is None:
         return {
             "error": f"Unknown equipment: '{equipment_name}'. Cannot verify thermal safety.",
             "known_equipment": list(HARDWARE_LIMITS.keys())
         }
 
+    # Step 3: Compare target temperature with thermal safety limit
     max_temp = HARDWARE_LIMITS[resolved_key]
     is_safe = target_temperature_celsius <= max_temp
 
@@ -91,5 +96,8 @@ def check_hardware_compatibility(
     }
 
 
+# --- Server Entrypoint & Event Loop ---
+# Runs the JSON-RPC event loop over standard input/output (stdio).
+# Handles tools/list, tools/call, and protocol handshakes automatically.
 if __name__ == "__main__":
     mcp.run(transport="stdio")

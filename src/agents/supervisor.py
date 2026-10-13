@@ -150,7 +150,12 @@ async def run_supervisor(
     start_time = time.time()
     logger.info(f"[Supervisor] Initializing ChemShield AI workflow (intent='{intent}', region='{region}', lang='{language}') for: '{user_input[:60]}'")
 
-    # Step 0: Check SQLite Semantic Cache
+    # =========================================================================
+    # WORKFLOW STAGE 0: FAST-PATH SEMANTIC & SHA-256 CACHE LOOKUP
+    # Checks SQLite input_cache for an exact or semantic match.
+    # If the user previously ran an audit and now requests an SDS ('audit_and_sds' or 'sds'),
+    # the supervisor upgrades the cached record directly without re-running entity checks.
+    # =========================================================================
     cached = get_semantic_cache(user_input, intent=intent, region=region, language=language)
     if not cached and intent in ("full", "sds", "audit_and_sds"):
         cached = get_semantic_cache(user_input, intent="audit", region=region, language=language)
@@ -181,6 +186,7 @@ async def run_supervisor(
                 if p_data:
                     state.pubchem_data[c.name] = p_data
 
+            # SDS Authoring and Reflection quality gate loop
             await run_sds_author_agent(state)
             await run_reflection_agent(state)
 
@@ -210,9 +216,16 @@ async def run_supervisor(
             result.compliance_report.cache_status = "SQLite Semantic Cache Hit"
             return result
 
+    # =========================================================================
+    # WORKFLOW STAGE 1: BLACKBOARD INITIALIZATION & ENTITY EXTRACTION
+    # 1. Instantiates the AgentState blackboard (shared cross-agent state).
+    # 2. Uses LLM with JSON repair loop to extract chemicals, concentrations, containers, and temperatures.
+    # 3. Normalizes CAS Registry Numbers, validates concentrations, and checks physical boundaries.
+    # =========================================================================
     state = AgentState(user_input=user_input, intent=intent, region=region, language=language)
 
     # Step 1: Entity Extraction & Validation
+    # Extracts chemicals, containers, and temperatures using LLM with JSON repair loop.
     chems, hws, extraction_ok = await _extract_entities(user_input)
 
     if not extraction_ok or (not chems and not hws):
@@ -279,8 +292,16 @@ async def run_supervisor(
         status="success"
     )
 
-    # Step 2: Model-Mediated ReAct Action Loop
-    # The supervisor model dynamically decides which specialist action to invoke based on current observations.
+    # =========================================================================
+    # WORKFLOW STAGE 2: MODEL-MEDIATED ReAct ACTION LOOP (DYNAMIC DISPATCH)
+    # The supervisor model dynamically decides which specialist action to invoke:
+    #   - 'check_chemical_compliance': 5-layer retrieval (Master DB -> RAG -> Cache -> LLM -> Tavily)
+    #   - 'check_hardware_compatibility': FastMCP stdio transport tool discovery & execution
+    #   - 'fetch_pubchem_intelligence': REST API CIDs, hazard statements, & signal words
+    #   - 'flag_sds_required': Marks pipeline intent for full SDS generation
+    #   - 'finish_audit': Completes the assessment phase
+    # Includes safety guardrail fallbacks in case the LLM finishes early.
+    # =========================================================================
     completed_actions = set()
     observations: list[str] = []
     max_steps = 4
@@ -416,7 +437,15 @@ async def run_supervisor(
             action_source="guardrail_override"
         )
 
-    # Step 3: Compute Safety Verdict (Fail-Closed)
+    # =========================================================================
+    # WORKFLOW STAGE 3: SAFETY VERDICT SYNTHESIS (FAIL-CLOSED LOGIC)
+    # 1. Detects physical boiling hazards (target temperature >= component boiling point).
+    # 2. Aggregates all chemical and hardware flags.
+    # 3. Applies fail-closed tri-state verdict policy:
+    #      - REJECTED: Any NON_COMPLIANT chemical, UNSAFE hardware, or boiling hazard.
+    #      - REVIEW_REQUIRED: Missing hardware, UNKNOWN chemical, or unit mismatch.
+    #      - APPROVED: All chemicals compliant and hardware thermally verified safe.
+    # =========================================================================
     boiling_hazards = []
     for hw in state.hardware:
         target_temp = hw.target_temperature_celsius
@@ -465,7 +494,11 @@ async def run_supervisor(
         "No violations found. All safety checks passed."
     )
 
-    # Step 4: Summary Generation (cached)
+    # =========================================================================
+    # WORKFLOW STAGE 4: EXECUTIVE SAFETY SUMMARY GENERATION
+    # Produces a single authoritative, audit-ready sentence explaining findings.
+    # Cached in summary_cache table to eliminate redundant LLM calls.
+    # =========================================================================
     cached_summary = get_summary_cache(violation_notes)
     if cached_summary:
         logger.info("[Supervisor] Summary Cache HIT! Reusing safety summary.")
@@ -480,7 +513,13 @@ async def run_supervisor(
         )
         set_summary_cache(violation_notes, summary)
 
-    # Step 5: SDS Generation & Reflection Loop (executed ONLY if intent is full/sds)
+    # =========================================================================
+    # WORKFLOW STAGE 5: GHS SDS AUTHORING & REFLECTION QUALITY AUDIT LOOP
+    # Triggered when intent is 'full', 'sds', or 'audit_and_sds'.
+    # 1. SDSAuthorAgent: Generates 16 standard GHS sections tailored to region & language.
+    # 2. ReflectionAgent: Audits 9 deterministic compliance gates (CAS, PPE, UN transport, RCRA).
+    # 3. Auto-correction: Retries up to 2 times feeding failure notes back to author.
+    # =========================================================================
     if intent in ("full", "sds", "audit_and_sds"):
         logger.info("[Supervisor] Intent includes GHS SDS. Dispatching SDSAuthorAgent & Reflection...")
         await run_sds_author_agent(state)
@@ -498,6 +537,15 @@ async def run_supervisor(
     else:
         logger.info("[Supervisor] Intent is 'audit'. Skipping SDS Authoring & Reflection loop (~1s fast finish).")
 
+    # =========================================================================
+    # WORKFLOW STAGE 6: METRICS COMPUTATION & CACHE COMMIT
+    # Computes genuine empirical quality metrics:
+    #   - RAG context relevancy (proportion of flags backed by regulatory RAG / DB)
+    #   - MCP tool call success rate (successful stdio round-trips)
+    #   - LLM instruction following score (format, single-sentence constraint)
+    #   - Total pipeline latency in seconds
+    # Commits the result to the SQLite cache to accelerate future identical runs.
+    # =========================================================================
     total_latency = time.time() - start_time
 
     # Real metric computation

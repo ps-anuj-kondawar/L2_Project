@@ -104,3 +104,6 @@ Evaluates verdict accuracy against golden formulation scenarios in `benchmark_da
 
 For detailed step-by-step instructions on setting up the environment, installing dependencies, populating ChromaDB, and running tests, please refer to [SETUP.md](SETUP.md).
 
+For the technical report on model selection and open-source LLM benchmarking results, see [OPEN_SOURCE_LLM_EVALUATION.md](docs/OPEN_SOURCE_LLM_EVALUATION.md).
+
+

@@ -116,8 +116,8 @@ async def chat(messages: list[dict], json_mode: bool = False) -> str:
                     return res
                 except Exception as ore:
                     logger.error(f"OpenRouter fallback also failed ({type(ore).__name__}): {ore}")
-                    raise ore
-            raise e
+                    raise
+            raise
 
     if openrouter_key:
         res = await _openrouter_chat(messages, json_mode)

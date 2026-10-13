@@ -189,14 +189,14 @@ class TestHardwareAgent(unittest.IsolatedAsyncioTestCase):
 class TestChemicalAgent(unittest.IsolatedAsyncioTestCase):
 
     async def test_chemical_safety_water_compliant(self):
-        flag, rel = await check_single_chemical("water", "90%")
+        flag, _rel = await check_single_chemical("water", "90%")
         self.assertTrue(flag.is_compliant)
 
     @patch("src.agents.chemical_agent._search_chemical_safety", new_callable=AsyncMock)
     @patch("src.agents.chemical_agent.query_regulations", return_value=[])
     async def test_chemical_safety_benzene_exceeds(self, mock_rag, mock_web):
         mock_web.return_value = {"pct": 1.0, "citation": "test citation"}
-        flag, rel = await check_single_chemical("benzene", "5%", region="US")
+        flag, _rel = await check_single_chemical("benzene", "5%", region="US")
         self.assertEqual(flag.status, "NON_COMPLIANT")
         self.assertFalse(flag.is_compliant)
 
@@ -204,7 +204,7 @@ class TestChemicalAgent(unittest.IsolatedAsyncioTestCase):
     @patch("src.agents.chemical_agent.query_regulations", return_value=[])
     async def test_missing_concentration_returns_review_required(self, mock_rag, mock_web):
         mock_web.return_value = {"ppm": 1.0, "citation": "test citation"}
-        flag, rel = await check_single_chemical("benzene", "", region="US")
+        flag, _rel = await check_single_chemical("benzene", "", region="US")
         self.assertEqual(flag.status, "REVIEW_REQUIRED")
         self.assertFalse(flag.is_compliant)
 
@@ -352,7 +352,7 @@ class TestChemicalAgentFailClosed(unittest.IsolatedAsyncioTestCase):
 
         from src.agents.chemical_agent import check_single_chemical
         # Benzene is in master DB — even with empty concentration, must be REVIEW_REQUIRED
-        flag, is_relevant = await check_single_chemical("benzene", "")
+        flag, _is_relevant = await check_single_chemical("benzene", "")
         self.assertFalse(flag.is_compliant)
         # Master DB found, concentration missing → must be exactly REVIEW_REQUIRED (not NON_COMPLIANT)
         self.assertEqual(flag.status, "REVIEW_REQUIRED")

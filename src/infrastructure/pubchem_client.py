@@ -265,13 +265,14 @@ async def get_pubchem_data(chemical_name: str) -> PubChemData:
     """
     norm_name = chemical_name.strip().lower()
 
-    # Layer 2 Cache Check
+    # Step 1: L2 SQLite Cache Check (Instant repeat lookup, avoids external API costs)
     cached = get_pubchem_cache(norm_name)
     if cached:
         logger.info(f"PubChem SQLite Cache HIT for '{chemical_name}'.")
         return PubChemData.model_validate(cached)
 
     logger.info(f"PubChem API Lookup for '{chemical_name}'...")
+    # Step 2: Resolve Chemical Name to PubChem Compound ID (CID)
     cid = await get_pubchem_cid(chemical_name)
     if not cid:
         logger.warning(f"PubChem CID MISS for '{chemical_name}'. Returning default PubChemData.")
@@ -282,12 +283,15 @@ async def get_pubchem_data(chemical_name: str) -> PubChemData:
         set_pubchem_cache(norm_name, res.model_dump())
         return res
 
+    # Step 3: Concurrent Fetch of CAS, Physical Properties, and GHS Classifications
+    # Uses asyncio.gather with rate-limiting semaphore for maximum throughput
     cas, props, ghs = await asyncio.gather(
         get_pubchem_cas(cid),
         get_pubchem_properties(cid),
         get_pubchem_ghs(cid)
     )
 
+    # Step 4: Assemble Validated PubChemData Domain Object
     res = PubChemData(
         chemical_name=chemical_name,
         cid=cid,
@@ -303,5 +307,6 @@ async def get_pubchem_data(chemical_name: str) -> PubChemData:
         source=f"PubChem CID {cid}"
     )
 
+    # Step 5: Persist to SQLite Cache for Subsequent Agent Turns
     set_pubchem_cache(norm_name, res.model_dump())
     return res

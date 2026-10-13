@@ -13,6 +13,7 @@ async def run_intelligence_agent(state: AgentState) -> AgentState:
     concurrently for all chemicals in state.chemicals.
     """
     start_time = time.time()
+    # Step 1: Early return if no chemical entities are present in state
     if not state.chemicals:
         state.add_trace(
             agent="IntelligenceAgent",
@@ -26,14 +27,17 @@ async def run_intelligence_agent(state: AgentState) -> AgentState:
     chem_names = [c.name for c in state.chemicals]
     logger.info(f"[IntelligenceAgent] Fetching PubChem data for {len(chem_names)} chemicals: {chem_names}")
 
+    # Step 2: Concurrent async fetch across all chemicals (uses PubChem REST client + SQLite cache)
     results = await asyncio.gather(*[get_pubchem_data(name) for name in chem_names])
 
+    # Step 3: Populate shared blackboard state with PubChem data dictionaries
     for chem_data in results:
         state.pubchem_data[chem_data.chemical_name.lower().strip()] = chem_data.model_dump()
 
     duration = int((time.time() - start_time) * 1000)
     found_cids = [d.cid for d in results if d.cid]
 
+    # Step 4: Record execution trace for UI streaming and auditing
     state.add_trace(
         agent="IntelligenceAgent",
         action=f"PubChem REST API Query ({len(chem_names)} chemicals)",

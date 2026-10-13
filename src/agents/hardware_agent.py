@@ -121,6 +121,8 @@ async def _mcp_check(hw_name: str, temp: float | None, session: ClientSession | 
         }, True, False
 
     async def _execute_with_session(sess: ClientSession) -> tuple[dict, bool, bool]:
+        # MCP Lifecycle Step 3: Tool Discovery
+        # Query the server for available tools dynamically over stdio (JSON-RPC tools/list)
         available_tools = await sess.list_tools()
         tool_names = [t.name for t in available_tools.tools]
         
@@ -132,6 +134,8 @@ async def _mcp_check(hw_name: str, temp: float | None, session: ClientSession | 
                 "status": "REVIEW_REQUIRED"
             }, True, False
 
+        # MCP Lifecycle Step 4: Tool Execution
+        # Invoke the tool via JSON-RPC tools/call request with arguments
         result = await sess.call_tool(
             "check_hardware_compatibility",
             {"equipment_name": hw_name, "target_temperature_celsius": temp}
@@ -171,10 +175,9 @@ async def _mcp_check(hw_name: str, temp: float | None, session: ClientSession | 
     )
     logger.info(f"[HardwareAgent] MCP tool discovery & lookup for '{hw_name}' at {temp}C...")
     try:
-        async with stdio_client(server_params) as (r, w):
-            async with ClientSession(r, w) as sess:
-                await sess.initialize()
-                return await _execute_with_session(sess)
+        async with stdio_client(server_params) as (r, w), ClientSession(r, w) as sess:
+            await sess.initialize()
+            return await _execute_with_session(sess)
     except Exception as e:
         logger.error(f"[HardwareAgent] MCP transport error for '{hw_name}' ({type(e).__name__}): {e}. Trying local limit lookup...")
         key = fuzzy_match_hardware(hw_name.lower().strip())
@@ -220,17 +223,28 @@ async def run_hardware_agent(state: AgentState) -> AgentState:
     logger.info(f"[HardwareAgent] Evaluating {len(state.hardware)} hardware items via MCP...")
     results = []
 
-    # Try single shared MCP session for batch evaluation
+    # =========================================================================
+    # WORKFLOW STAGE: HARDWARE THERMAL COMPLIANCE AUDIT (MCP LIFECYCLE)
+    # The complete Model Context Protocol (MCP) lifecycle across 5 phases:
+    #   Phase 1: Process Spawn & Stdio Transport Configuration (spawns mcp_server.py)
+    #   Phase 2: Handshake & JSON-RPC Initialization (stdio_client + initialize())
+    #   Phase 3: Tool Discovery (JSON-RPC tools/list dynamic querying)
+    #   Phase 4: Tool Execution & Verification (JSON-RPC tools/call + web fallback)
+    #   Phase 5: Graceful Session Teardown & Resource Cleanup (async context manager exit)
+    # Results are recorded as HardwareFlag objects on the shared AgentState blackboard.
+    # =========================================================================
     env_vars = dict(os.environ)
     server_params = StdioServerParameters(
         command=sys.executable, args=[MCP_SERVER_SCRIPT], env=env_vars
     )
     try:
-        async with stdio_client(server_params) as (r, w):
-            async with ClientSession(r, w) as session:
-                await session.initialize()
-                tasks = [_mcp_check(h.name, h.target_temperature_celsius, session=session) for h in state.hardware]
-                results = await asyncio.gather(*tasks)
+        # Phase 1 & 2: Transport Connect & Handshake
+        async with stdio_client(server_params) as (r, w), ClientSession(r, w) as session:
+            await session.initialize()
+            # Phase 3 & 4: Tool Discovery & Concurrent Tool Execution
+            tasks = [_mcp_check(h.name, h.target_temperature_celsius, session=session) for h in state.hardware]
+            results = await asyncio.gather(*tasks)
+        # Phase 5: Session Teardown automatically handled on context manager exit
     except (Exception, BaseException) as e:
         logger.warning(f"[HardwareAgent] Shared MCP session failed ({e}); evaluating per-call fallback.")
         tasks = [_mcp_check(h.name, h.target_temperature_celsius) for h in state.hardware]
@@ -238,13 +252,10 @@ async def run_hardware_agent(state: AgentState) -> AgentState:
 
     flags = []
     any_transport_fail = False
-    any_domain_fail = False
 
-    for (res, transport_ok, tool_ok), h in zip(results, state.hardware):
+    for (res, transport_ok, _tool_ok), h in zip(results, state.hardware):
         if not transport_ok:
             any_transport_fail = True
-        if not tool_ok:
-            any_domain_fail = True
 
         max_t = res.get("max_safe_temperature_celsius", 0.0)
         is_safe = res.get("is_safe", False)
