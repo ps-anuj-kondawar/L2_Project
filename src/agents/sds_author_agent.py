@@ -52,6 +52,12 @@ _RCRA_CODES = {
     "phenol": "U188 (Toxic waste)",
 }
 
+try:
+    with open("templates/sds_template.html", "r", encoding="utf-8") as _f:
+        _SDS_TEMPLATE_STR = _f.read()
+except Exception:
+    _SDS_TEMPLATE_STR = ""
+
 
 def _clean_section_title(sec_num: int, raw_title: str) -> str:
     """Strip leading redundant prefixes like '1.', 'SECTION 1:', '1 -' from section title."""
@@ -94,7 +100,7 @@ def _build_physical_props_str(chem_names: list[str]) -> str:
     vp_str = f"Component Vapor Pressures: {'; '.join(vapor_pressures)}. Mixture Vapor Pressure: Not determined experimentally." if vapor_pressures else "Vapor Pressure: Not determined"
     sol_str = f"Water Solubility: {'; '.join(solubility_parts)}" if solubility_parts else "Water Solubility: Refer to individual component data"
 
-    return "\n• ".join([bp_str, fp_str, density_str, vp_str, sol_str])
+    return f"{bp_str}\n• {fp_str}\n• {density_str}\n• {vp_str}\n• {sol_str}"
 
 
 def _build_exposure_limits_str(chem_names: list[str]) -> str:
@@ -181,7 +187,7 @@ def _build_expert_sections(
     using authoritative domain databases and verified formulation facts.
     Strictly prevents cross-contamination of unrelated chemicals.
     """
-    today_str = datetime.date.today().strftime("%B %d, %Y")
+    today_str = datetime.datetime.now(datetime.timezone.utc).date().strftime("%B %d, %Y")
     hazardous_chems = [c.title() for c in chem_names if c.lower().strip() != "water"]
     haz_names_str = ", ".join(hazardous_chems) if hazardous_chems else "formulation components"
 
@@ -394,8 +400,8 @@ def _parse_llm_sections(raw_text: str) -> list[SDSSection] | None:
                 sec.title = _clean_section_title(sec.section_number, sec.title)
                 secs.append(sec)
             return secs
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[SDSAuthorAgent] Direct JSON parse strategy not applicable: {e}")
 
     # Strategy 2: Regex JSON array extraction
     match = re.search(r'\[\s*\{.*\}\s*\]', cleaned, re.DOTALL)
@@ -409,8 +415,8 @@ def _parse_llm_sections(raw_text: str) -> list[SDSSection] | None:
                     sec.title = _clean_section_title(sec.section_number, sec.title)
                     secs.append(sec)
                 return secs
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[SDSAuthorAgent] Regex JSON parse strategy not applicable: {e}")
 
     return None
 
@@ -598,6 +604,20 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
         "Schema: [{\"section_number\": int (1-16), \"title\": \"string\", \"content\": \"detailed section text\"}]\n"
     )
 
+    # =========================================================================
+    # WORKFLOW STAGE: GHS SAFETY DATA SHEET (SDS) AUTHORING
+    # Dual-Engine Hybrid Generation Pipeline:
+    #   1. Authoritative Deterministic Engine: Synthesizes baseline text for all 16
+    #      sections using hardcoded regulatory templates, CAS mappings, PubChem
+    #      hazard statements, UN transport classifications, and RCRA codes.
+    #   2. LLM Enrichment Engine: Ingests the baseline along with user input,
+    #      target region, and reflection feedback critiques to produce nuanced,
+    #      jurisdiction-tailored SDS sections in the requested language.
+    #   3. Merge & Fail-Safe Fallback: Overlays generated sections onto deterministic
+    #      baseline to ensure zero section omission.
+    #   4. Jinja2 Presentation Rendering: Compiles the SDSDocument into clean HTML
+    #      with embedded SVG pictograms and styling, ready for display or PDF export.
+    # =========================================================================
     sections = None
     try:
         raw_json = await llm_chat(
@@ -632,7 +652,7 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
 
     sds_doc = SDSDocument(
         product_name=product_name,
-        revision_date=datetime.date.today().strftime("%B %d, %Y"),
+        revision_date=datetime.datetime.now(datetime.timezone.utc).date().strftime("%B %d, %Y"),
         sections=sections,
         pictogram_codes=list(all_pictograms),
         signal_word=signal_word
@@ -641,8 +661,9 @@ async def run_sds_author_agent(state: AgentState) -> AgentState:
 
     # Render Jinja2 HTML
     try:
-        with open("templates/sds_template.html", "r", encoding="utf-8") as f:
-            template_str = f.read()
+        template_str = _SDS_TEMPLATE_STR
+        if not template_str:
+            template_str = "<html><body><h1>{{ sds.product_name }}</h1>{% for sec in sds.sections %}<h2>{{ sec.section_number }}. {{ sec.title }}</h2><p>{{ sec.content }}</p>{% endfor %}</body></html>"
 
         tpl = Template(template_str)
         pic_svgs = []

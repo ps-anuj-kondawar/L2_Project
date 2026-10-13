@@ -34,8 +34,8 @@ def _get_collection():
         try:
             if _collection.count() == 0:
                 logger.warning("[RAG] ChromaDB collection is empty. Run 'python -m src.scripts.ingest' to populate regulatory data.")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[RAG] Collection count check note: {e}")
     return _collection
 
 

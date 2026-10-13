@@ -102,8 +102,11 @@ async def serve_index():
     """
     index_path = os.path.join("static", "index.html")
     if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+        def _read_index() -> str:
+            with open(index_path, "r", encoding="utf-8") as f:
+                return f.read()
+        content = await asyncio.to_thread(_read_index)
+        return HTMLResponse(content=content)
     return HTMLResponse("<h1>ChemShield AI is starting up...</h1>")
 
 
@@ -204,6 +207,15 @@ async def stream_audit_endpoint(input_text: str, intent: Intent = Intent.AUDIT, 
     if len(input_text.strip()) > MAX_INPUT_LENGTH:
         raise HTTPException(status_code=400, detail=f"Input text exceeds maximum length of {MAX_INPUT_LENGTH} characters.")
 
+    # =========================================================================
+    # WORKFLOW STAGE: REAL-TIME TELEMETRY & SSE STREAMING DISPATCH
+    # 1. Attaches a thread-safe QueueHandler to capture runtime log messages.
+    # 2. Emits an initial 'start' handshake event over the HTTP SSE stream.
+    # 3. Spawns the supervisor orchestration pipeline as an asynchronous background task.
+    # 4. Streams live logs ('log' events) and keep-alive heartbeats to the UI.
+    # 5. Emits structured execution traces ('step' events) and final results ('result' event).
+    # 6. Cleans up handlers and terminates the stream cleanly.
+    # =========================================================================
     log_queue: asyncio.Queue[str | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
     queue_handler = _make_queue_handler(log_queue, loop)
@@ -415,8 +427,8 @@ def _make_queue_handler(queue: asyncio.Queue, loop: asyncio.AbstractEventLoop) -
             msg = self.format(record)
             try:
                 loop.call_soon_threadsafe(queue.put_nowait, msg)
-            except Exception:
-                pass
+            except (asyncio.QueueFull, RuntimeError) as e:
+                logger.debug(f"QueueHandler dropped log: {e}")
 
     h = _QueueHandler()
     h.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s", "%H:%M:%S"))

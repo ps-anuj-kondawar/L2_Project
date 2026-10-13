@@ -509,6 +509,19 @@ async def run_chemical_agent(state: AgentState) -> AgentState:
         )
         return state
 
+    # =========================================================================
+    # WORKFLOW STAGE: CHEMICAL COMPLIANCE AUDIT
+    # 1. Concurrently evaluates every extracted chemical via asyncio.gather().
+    # 2. For each chemical, traverses the 5-layer retrieval cascade:
+    #      Layer 1: Master Database (authoritative PELs/concentrations)
+    #      Layer 2: ChromaDB Vector RAG (OSHA 1910.1000 regulatory text)
+    #      Layer 3: SQLite Semantic Cache (previous queries)
+    #      Layer 4: Gemini LLM Structured Query (domain knowledge)
+    #      Layer 5: Tavily Live Web Search (novel or uncataloged compounds)
+    # 3. Validates unit compatibility (inhalation ppm vs formulation liquid %).
+    # 4. Enforces fail-closed safety policy (uncertainty -> REVIEW_REQUIRED).
+    # 5. Stores flags on the shared AgentState blackboard.
+    # =========================================================================
     logger.info(f"[ChemicalAgent] Evaluating {len(state.chemicals)} chemicals concurrently for region {state.region}...")
     tasks = [check_single_chemical(c.name, c.concentration or "", state.region) for c in state.chemicals]
     results = await asyncio.gather(*tasks)
