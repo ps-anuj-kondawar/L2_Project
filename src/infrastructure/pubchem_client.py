@@ -278,7 +278,7 @@ async def get_pubchem_data(chemical_name: str) -> PubChemData:
         logger.warning(f"PubChem CID MISS for '{chemical_name}'. Returning default PubChemData.")
         res = PubChemData(
             chemical_name=chemical_name,
-            source="PubChem (Not Found - Fallback to RAG)"
+            source="PubChem (Not Found - Fallback to Database / Web)"
         )
         set_pubchem_cache(norm_name, res.model_dump())
         return res

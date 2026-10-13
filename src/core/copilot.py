@@ -13,14 +13,13 @@ import re
 import time
 
 from src.agents.chemical_agent import _search_chemical_safety
-from src.core.constants import CAS_TO_NAME
+from src.core.constants import CAS_TO_NAME, MASTER_CHEMICAL_DATABASE
 from src.core.logger import logger
 from src.infrastructure.cache import (
     get_conversation_cache,
     set_conversation_cache,
 )
 from src.infrastructure.llm_client import chat as llm_chat
-from src.infrastructure.rag import query_regulations
 from src.utils.validator import KNOWN_CHEMICALS
 
 # Detect CAS Registry Numbers typed into the chat (e.g., "71-43-2", "7664-93-9")
@@ -31,8 +30,7 @@ async def _get_single_chemical_context(name: str) -> str:
     """
     Fetch OSHA regulatory and exposure limit context for a single chemical.
 
-    Queries ChromaDB RAG first, falling back to Tavily live web search if no
-    authoritative local vector document matches the query chemical.
+    Checks MASTER_CHEMICAL_DATABASE first, falling back to Tavily live web search.
 
     Args:
         name (str): Canonical or common chemical name.
@@ -41,10 +39,17 @@ async def _get_single_chemical_context(name: str) -> str:
         str: Formatted OSHA safety data string with source citations, or empty string on error.
     """
     try:
-        rag_docs = query_regulations(name)
-        top_doc = rag_docs[:1]
-        if top_doc and name.lower() in top_doc[0].lower():
-            return f"OSHA Safety Data for {name}:\n{top_doc[0]}"
+        norm_name = name.lower().strip()
+        if norm_name in MASTER_CHEMICAL_DATABASE:
+            entry = MASTER_CHEMICAL_DATABASE[norm_name]
+            parts = []
+            if entry.get("pel_ppm") is not None:
+                parts.append(f"{entry['pel_ppm']} ppm TWA")
+            if entry.get("liquid_pct_limit") is not None:
+                parts.append(f"{entry['liquid_pct_limit']}% by volume")
+            limits_str = f"{name}: " + ", ".join(parts) + " (Source: OSHA Master Database)"
+            return f"OSHA Safety Data for {name}:\n{limits_str}"
+
         web_limits = await _search_chemical_safety(name)
         if web_limits:
             parts = []

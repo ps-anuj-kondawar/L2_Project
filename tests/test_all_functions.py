@@ -193,16 +193,14 @@ class TestChemicalAgent(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(flag.is_compliant)
 
     @patch("src.agents.chemical_agent._search_chemical_safety", new_callable=AsyncMock)
-    @patch("src.agents.chemical_agent.query_regulations", return_value=[])
-    async def test_chemical_safety_benzene_exceeds(self, mock_rag, mock_web):
+    async def test_chemical_safety_benzene_exceeds(self, mock_web):
         mock_web.return_value = {"pct": 1.0, "citation": "test citation"}
         flag, _rel = await check_single_chemical("benzene", "5%", region="US")
         self.assertEqual(flag.status, "NON_COMPLIANT")
         self.assertFalse(flag.is_compliant)
 
     @patch("src.agents.chemical_agent._search_chemical_safety", new_callable=AsyncMock)
-    @patch("src.agents.chemical_agent.query_regulations", return_value=[])
-    async def test_missing_concentration_returns_review_required(self, mock_rag, mock_web):
+    async def test_missing_concentration_returns_review_required(self, mock_web):
         mock_web.return_value = {"ppm": 1.0, "citation": "test citation"}
         flag, _rel = await check_single_chemical("benzene", "", region="US")
         self.assertEqual(flag.status, "REVIEW_REQUIRED")
@@ -301,12 +299,11 @@ class TestChemicalAgentFailClosed(unittest.IsolatedAsyncioTestCase):
     when no regulatory data is found — never incorrectly marks as COMPLIANT.
     """
 
-    @patch("src.agents.chemical_agent.query_regulations", return_value=[])
     @patch("src.agents.chemical_agent.get_osha_limits", return_value=None)
     @patch("src.agents.chemical_agent._gemini_chemical_lookup", new_callable=AsyncMock)
     @patch("src.agents.chemical_agent._search_chemical_safety", new_callable=AsyncMock)
     async def test_unknown_chemical_no_data_is_not_compliant(
-        self, mock_tavily, mock_gemini, mock_cache, mock_rag
+        self, mock_tavily, mock_gemini, mock_cache
     ):
         """
         An unknown chemical with no regulatory data in any tier must return
@@ -336,12 +333,11 @@ class TestChemicalAgentFailClosed(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(flag.status, "NON_COMPLIANT")
         self.assertTrue(is_relevant)
 
-    @patch("src.agents.chemical_agent.query_regulations", return_value=[])
     @patch("src.agents.chemical_agent.get_osha_limits", return_value=None)
     @patch("src.agents.chemical_agent._gemini_chemical_lookup", new_callable=AsyncMock)
     @patch("src.agents.chemical_agent._search_chemical_safety", new_callable=AsyncMock)
     async def test_missing_concentration_is_review_required(
-        self, mock_tavily, mock_gemini, mock_cache, mock_rag
+        self, mock_tavily, mock_gemini, mock_cache
     ):
         """
         When a chemical is known but its concentration string is missing or empty,

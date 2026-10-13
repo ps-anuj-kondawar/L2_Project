@@ -2,13 +2,12 @@
 ChemShield AI — Chemical Compliance Agent.
 
 Evaluates chemical formulation components against regulatory exposure limits.
-Implements a 5-layer data retrieval strategy (in priority order):
+Implements a 4-layer data retrieval strategy (in priority order):
 
   1. MASTER_CHEMICAL_DATABASE   — hardcoded authoritative limits (cannot be corrupted)
-  2. ChromaDB RAG               — embedded OSHA regulatory text chunks
-  3. SQLite semantic cache       — previously fetched regulatory limits
-  4. Gemini API chemical lookup  — direct LLM query using trained chemistry knowledge
-  5. Tavily web search           — live fallback for exotic or novel compounds
+  2. SQLite semantic cache       — previously fetched regulatory limits
+  3. Gemini API chemical lookup  — direct LLM query using trained chemistry knowledge
+  4. Tavily web search           — live fallback for exotic or novel compounds
 
 UNIT SEMANTICS — CRITICAL:
 - 'ppm' (parts per million) limits are AIRBORNE INHALATION limits for worker safety.
@@ -38,7 +37,6 @@ from src.core.models import ChemicalFlag
 from src.core.state import AgentState
 from src.infrastructure.cache import get_osha_limits, set_osha_limits
 from src.infrastructure.llm_client import chat as llm_chat
-from src.infrastructure.rag import query_regulations
 
 # Compiled regex patterns
 _CONC_VAL_PATTERN = re.compile(r'[\d.]+')
@@ -347,32 +345,16 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
         is_relevant = True
         logger.info(f"[ChemicalAgent] Master DB hit for '{name}': {limits}")
     else:
-        # --- Layer 2: ChromaDB RAG ---
-        try:
-            rag_docs = query_regulations(name, region)
-            top_doc = rag_docs[:1]
-            if top_doc and name.lower() in top_doc[0].lower():
-                parsed = _parse_limits(top_doc)
-                if parsed.get("ppm") is not None or parsed.get("pct") is not None:
-                    limits = parsed
-                    retrieval_src = "chroma_rag"
-                    is_relevant = True
-                    set_osha_limits(f"{name}_{region}", limits)
-                    logger.info(f"[ChemicalAgent] RAG hit for '{name}': {limits}")
-        except Exception as e:
-            logger.warning(f"[ChemicalAgent] RAG query failed for '{name}': {e}")
+        # --- Layer 2: SQLite cache (only if not already found and cache entry is valid) ---
+        cached = get_osha_limits(f"{name}_{region}")
+        # Only trust cache if it has actual limit values (not a previous empty-fetch marker)
+        if cached and (cached.get("ppm") is not None or cached.get("pct") is not None):
+            limits = cached
+            retrieval_src = "sqlite_cache"
+            is_relevant = True
+            logger.info(f"[ChemicalAgent] SQLite cache hit for '{name}': {limits}")
 
-        # --- Layer 3: SQLite cache (only if not already found and cache entry is valid) ---
-        if not is_relevant:
-            cached = get_osha_limits(f"{name}_{region}")
-            # Only trust cache if it has actual limit values (not a previous empty-fetch marker)
-            if cached and (cached.get("ppm") is not None or cached.get("pct") is not None):
-                limits = cached
-                retrieval_src = "sqlite_cache"
-                is_relevant = True
-                logger.info(f"[ChemicalAgent] SQLite cache hit for '{name}': {limits}")
-
-        # --- Layer 4: Gemini direct chemical knowledge ---
+        # --- Layer 3: Gemini direct chemical knowledge ---
         if not is_relevant:
             gemini_limits = await _gemini_chemical_lookup(name, region)
             if gemini_limits and (gemini_limits.get("ppm") is not None or gemini_limits.get("pct") is not None):
@@ -382,7 +364,7 @@ async def check_single_chemical(name: str, conc_str: str, region: str = "US") ->
                 set_osha_limits(f"{name}_{region}", limits)
                 logger.info(f"[ChemicalAgent] Gemini knowledge hit for '{name}': {limits}")
 
-        # --- Layer 5: Tavily web search fallback ---
+        # --- Layer 4: Tavily web search fallback ---
         if not is_relevant:
             web_limits = await _search_chemical_safety(name, region)
             if web_limits and (web_limits.get("ppm") is not None or web_limits.get("pct") is not None):
@@ -513,12 +495,11 @@ async def run_chemical_agent(state: AgentState) -> AgentState:
     # =========================================================================
     # WORKFLOW STAGE: CHEMICAL COMPLIANCE AUDIT
     # 1. Concurrently evaluates every extracted chemical via asyncio.gather().
-    # 2. For each chemical, traverses the 5-layer retrieval cascade:
+    # 2. For each chemical, traverses the 4-layer retrieval cascade:
     #      Layer 1: Master Database (authoritative PELs/concentrations)
-    #      Layer 2: ChromaDB Vector RAG (OSHA 1910.1000 regulatory text)
-    #      Layer 3: SQLite Semantic Cache (previous queries)
-    #      Layer 4: Gemini LLM Structured Query (domain knowledge)
-    #      Layer 5: Tavily Live Web Search (novel or uncataloged compounds)
+    #      Layer 2: SQLite Semantic Cache (previous queries)
+    #      Layer 3: Gemini LLM Structured Query (domain knowledge)
+    #      Layer 4: Tavily Live Web Search (novel or uncataloged compounds)
     # 3. Validates unit compatibility (inhalation ppm vs formulation liquid %).
     # 4. Enforces fail-closed safety policy (uncertainty -> REVIEW_REQUIRED).
     # 5. Stores flags on the shared AgentState blackboard.
@@ -535,7 +516,7 @@ async def run_chemical_agent(state: AgentState) -> AgentState:
 
     state.add_trace(
         agent="ChemicalComplianceAgent",
-        action=f"OSHA Regulatory Limit Check ({len(flags)} chemicals, 5-layer retrieval)",
+        action=f"OSHA Regulatory Limit Check ({len(flags)} chemicals, 4-layer retrieval)",
         observation=obs,
         duration_ms=int((time.time() - start_time) * 1000),
         status="warning" if non_compliant else "success"
