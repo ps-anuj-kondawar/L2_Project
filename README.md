@@ -102,8 +102,8 @@ Evaluates verdict accuracy against golden formulation scenarios in `benchmark_da
 
 ## Setup & Quick Start
 
-For detailed step-by-step instructions on setting up the environment, installing dependencies, populating ChromaDB, and running tests, please refer to [SETUP.md](SETUP.md).
-
 For the technical report on model selection and open-source LLM benchmarking results, see [OPEN_SOURCE_LLM_EVALUATION.md](docs/OPEN_SOURCE_LLM_EVALUATION.md).
+
+For the complete catalog of system prompts, agent personas, and prompt security guardrails, see [SYSTEM_PROMPTS.md](docs/SYSTEM_PROMPTS.md).
 
 
